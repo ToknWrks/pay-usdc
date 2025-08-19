@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Menu, MenuButton, MenuItems, MenuItem, Transition } from '@headlessui/react'
@@ -12,8 +12,14 @@ export default function DropdownProfile({ align }: {
   align?: 'left' | 'right'
 }) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const [hasMounted, setHasMounted] = useState(false)
   const { isConnected, address } = useAccount()
   const { disconnect } = useDisconnect()
+
+  // Handle hydration
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
 
   const handleSignIn = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -25,9 +31,13 @@ export default function DropdownProfile({ align }: {
     disconnect()
   }
 
-  const displayName = isConnected && address 
+  // Prevent hydration mismatch by showing default state until mounted
+  const displayName = hasMounted && isConnected && address 
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
     : 'Acme Inc.'
+
+  const walletStatus = hasMounted && isConnected ? 'Wallet Connected' : 'Acme Inc.'
+  const userType = hasMounted && isConnected ? 'Web3 User' : 'Administrator'
 
   return (
     <>
@@ -55,10 +65,10 @@ export default function DropdownProfile({ align }: {
         >
           <div className="pt-0.5 pb-2 px-3 mb-1 border-b border-gray-200 dark:border-gray-700/60">
             <div className="font-medium text-gray-800 dark:text-gray-100">
-              {isConnected ? 'Wallet Connected' : 'Acme Inc.'}
+              {walletStatus}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 italic">
-              {isConnected ? 'Web3 User' : 'Administrator'}
+              {userType}
             </div>
           </div>
           <MenuItems as="ul" className="focus:outline-none">
@@ -69,7 +79,7 @@ export default function DropdownProfile({ align }: {
                 </Link>
               )}
             </MenuItem>
-            {!isConnected ? (
+            {!hasMounted || !isConnected ? (
               <MenuItem as="li">
                 {({ active }) => (
                   <button 
@@ -96,10 +106,12 @@ export default function DropdownProfile({ align }: {
         </Transition>
       </Menu>
 
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
-      />
+      {hasMounted && (
+        <LoginModal 
+          isOpen={isLoginModalOpen} 
+          onClose={() => setIsLoginModalOpen(false)} 
+        />
+      )}
     </>
   )
 }
