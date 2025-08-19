@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.1.1",
+    "@reown/appkit": "^1.7.20",
+    "@reown/appkit-adapter-wagmi": "^1.7.20",
+    "@tanstack/react-query": "^5.85.5",
     "@types/node": "^20.10.4",
     "@types/react": "^18.2.42",
     "@types/react-dom": "^18.2.17",
@@ -17,10 +20,13 @@
     "chartjs-adapter-moment": "^1.0.1",
     "next": "^14.0.3",
     "next-themes": "^0.3.0",
+    "qr": "^0.4.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-flatpickr": "^3.10.13",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "viem": "^2.34.0",
+    "wagmi": "^2.16.4"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.7",
