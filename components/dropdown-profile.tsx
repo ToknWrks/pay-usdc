@@ -5,16 +5,32 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Menu, MenuButton, MenuItems, MenuItem, Transition } from '@headlessui/react'
 import { useAccount, useDisconnect } from 'wagmi'
+import { useCosmosWallet } from '@/hooks/use-cosmos-wallet'
+import { useCosmosBalance } from '@/hooks/use-cosmos-balance'
+import { useEvmBalance } from '@/hooks/use-evm-balance'
 import UserAvatar from '@/public/images/user-avatar-32.png'
-import LoginModal from '@/components/login-modal'
+import WalletStatusModal from '@/components/wallet-status-modal'
 
 export default function DropdownProfile({ align }: {
   align?: 'left' | 'right'
 }) {
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const [isWalletStatusModalOpen, setIsWalletStatusModalOpen] = useState(false)
   const [hasMounted, setHasMounted] = useState(false)
-  const { isConnected, address } = useAccount()
-  const { disconnect } = useDisconnect()
+  
+  // EVM Wallet
+  const { isConnected: evmConnected, address: evmAddress, chainId } = useAccount()
+  const { disconnect: evmDisconnect } = useDisconnect()
+  const { native, usdc, isLoading: balanceLoading } = useEvmBalance()
+  
+  // Cosmos Wallets - get all chains
+  const osmosis = useCosmosWallet('osmosis')
+  const cosmoshub = useCosmosWallet('cosmoshub')
+  const juno = useCosmosWallet('juno')
+  const stargaze = useCosmosWallet('stargaze')
+  const noble = useCosmosWallet('noble') // Add Noble wallet
+
+  // Add Noble balance
+  const nobleBalance = useCosmosBalance('noble')
 
   // Handle hydration
   useEffect(() => {
@@ -23,21 +39,81 @@ export default function DropdownProfile({ align }: {
 
   const handleSignIn = (e: React.MouseEvent) => {
     e.preventDefault()
-    setIsLoginModalOpen(true)
+    setIsWalletStatusModalOpen(true) // Open wallet status modal instead of AppKit
   }
 
-  const handleSignOut = (e: React.MouseEvent) => {
+  const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault()
-    disconnect()
+    
+    try {
+      // Disconnect EVM wallet
+      if (evmConnected) {
+        evmDisconnect()
+      }
+
+      // Disconnect all connected Cosmos wallets (include Noble)
+      const cosmosWallets = [osmosis, cosmoshub, juno, stargaze, noble]
+      
+      await Promise.all(
+        cosmosWallets.map(async (wallet) => {
+          if (wallet.isConnected) {
+            try {
+              await wallet.disconnect()
+            } catch (error) {
+              console.error(`Failed to disconnect ${wallet.wallet?.prettyName || 'cosmos wallet'}:`, error)
+            }
+          }
+        })
+      )
+
+      console.log('All wallets disconnected successfully')
+    } catch (error) {
+      console.error('Error during wallet disconnection:', error)
+    }
   }
 
-  // Prevent hydration mismatch by showing default state until mounted
-  const displayName = hasMounted && isConnected && address 
-    ? `${address.slice(0, 6)}...${address.slice(-4)}`
-    : 'Acme Inc.'
+  const handleWalletStatus = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsWalletStatusModalOpen(true)
+  }
 
-  const walletStatus = hasMounted && isConnected ? 'Wallet Connected' : 'Acme Inc.'
-  const userType = hasMounted && isConnected ? 'Web3 User' : 'Administrator'
+  // Check if any wallet is connected
+  const isAnyWalletConnected = hasMounted && (
+    evmConnected || 
+    osmosis.isConnected || 
+    cosmoshub.isConnected || 
+    juno.isConnected || 
+    stargaze.isConnected ||
+    noble.isConnected
+  )
+
+  // Display name logic - prioritize EVM, then any cosmos wallet
+  const displayName = hasMounted ? (() => {
+    if (evmConnected && evmAddress) {
+      return `${evmAddress.slice(0, 6)}...${evmAddress.slice(-4)}`
+    }
+    if (noble.isConnected) return 'Noble Wallet'
+    if (osmosis.isConnected) return 'Osmosis Wallet'
+    if (cosmoshub.isConnected) return 'Cosmos Hub'
+    if (juno.isConnected) return 'Juno Wallet'
+    if (stargaze.isConnected) return 'Stargaze Wallet'
+    return 'Acme Inc.'
+  })() : 'Acme Inc.'
+
+  const walletStatus = isAnyWalletConnected ? 'Wallet Connected' : 'Acme Inc.'
+  const userType = isAnyWalletConnected ? 'Web3 User' : 'Administrator'
+
+  // Get network name
+  const getNetworkName = (chainId: number | undefined) => {
+    const networks: { [key: number]: string } = {
+      1: 'Ethereum',
+      10: 'Optimism',
+      137: 'Polygon',
+      42161: 'Arbitrum',
+      8453: 'Base',
+    }
+    return chainId ? networks[chainId] || `Chain ${chainId}` : 'Unknown'
+  }
 
   return (
     <>
@@ -55,7 +131,7 @@ export default function DropdownProfile({ align }: {
         </MenuButton>
         <Transition
           as="div"
-          className={`origin-top-right z-10 absolute top-full min-w-[11rem] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/60 py-1.5 rounded-lg shadow-lg overflow-hidden mt-1 ${align === 'right' ? 'right-0' : 'left-0'}`}
+          className={`origin-top-right z-10 absolute top-full min-w-[16rem] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/60 py-1.5 rounded-lg shadow-lg overflow-hidden mt-1 ${align === 'right' ? 'right-0' : 'left-0'}`}
           enter="transition ease-out duration-200 transform"
           enterFrom="opacity-0 -translate-y-2"
           enterTo="opacity-100 translate-y-0"
@@ -70,7 +146,94 @@ export default function DropdownProfile({ align }: {
             <div className="text-xs text-gray-500 dark:text-gray-400 italic">
               {userType}
             </div>
+            
+            {/* Show balance information - prioritize Noble USDC, then EVM wallet */}
+            {hasMounted && (
+              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                {/* Show Noble USDC if connected */}
+                {noble.isConnected && (
+                  <div className="mb-2">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      Noble (USDC Chain)
+                    </div>
+                    {nobleBalance.isLoading ? (
+                      <div className="text-xs text-gray-500">Loading USDC balance...</div>
+                    ) : nobleBalance.error ? (
+                      <div className="text-xs text-red-500">Error loading balance</div>
+                    ) : (
+                      <div className="space-y-1">
+                        {nobleBalance.native && (
+                          <div className="flex justify-between text-xs">
+                            <div className="flex items-center">
+                              {nobleBalance.native.icon && (
+                                <img 
+                                  src={nobleBalance.native.icon} 
+                                  alt="USDC"
+                                  className="w-3 h-3 mr-1 rounded-full"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none'
+                                  }}
+                                />
+                              )}
+                              <span className="text-gray-600 dark:text-gray-400">USDC:</span>
+                            </div>
+                            <span className="font-mono text-gray-800 dark:text-gray-200">
+                              ${nobleBalance.native.formatted}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Show EVM wallet info if connected and no Noble, or show network info */}
+                {evmConnected && (
+                  <div className={noble.isConnected ? 'pt-2 border-t border-gray-200 dark:border-gray-600' : ''}>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      {getNetworkName(chainId)}
+                    </div>
+                    {balanceLoading ? (
+                      <div className="text-xs text-gray-500">Loading balances...</div>
+                    ) : (
+                      <div className="space-y-1">
+                        {/* Show EVM USDC if available and no Noble */}
+                        {!noble.isConnected && usdc && (
+                          <div className="flex justify-between text-xs">
+                            <div className="flex items-center">
+                              {usdc.icon && (
+                                <img 
+                                  src={usdc.icon} 
+                                  alt="USDC"
+                                  className="w-3 h-3 mr-1 rounded-full"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none'
+                                  }}
+                                />
+                              )}
+                              <span className="text-gray-600 dark:text-gray-400">USDC:</span>
+                            </div>
+                            <span className="font-mono text-gray-800 dark:text-gray-200">
+                              ${usdc.formatted}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Show native token */}
+                        {native && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-600 dark:text-gray-400">{native.symbol}:</span>
+                            <span className="font-mono text-gray-800 dark:text-gray-200">{native.formatted}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+          
           <MenuItems as="ul" className="focus:outline-none">
             <MenuItem as="li">
               {({ active }) => (
@@ -79,7 +242,22 @@ export default function DropdownProfile({ align }: {
                 </Link>
               )}
             </MenuItem>
-            {!hasMounted || !isConnected ? (
+            
+            {/* Show wallet status option if any wallet is connected */}
+            {isAnyWalletConnected && (
+              <MenuItem as="li">
+                {({ active }) => (
+                  <button 
+                    className={`w-full text-left font-medium text-sm flex items-center py-1 px-3 ${active ? 'text-violet-600 dark:text-violet-400' : 'text-violet-500'}`} 
+                    onClick={handleWalletStatus}
+                  >
+                    Connected Wallets
+                  </button>
+                )}
+              </MenuItem>
+            )}
+
+            {!isAnyWalletConnected ? (
               <MenuItem as="li">
                 {({ active }) => (
                   <button 
@@ -97,7 +275,7 @@ export default function DropdownProfile({ align }: {
                     className={`w-full text-left font-medium text-sm flex items-center py-1 px-3 ${active ? 'text-violet-600 dark:text-violet-400' : 'text-violet-500'}`} 
                     onClick={handleSignOut}
                   >
-                    Sign Out
+                    Sign Out All
                   </button>
                 )}
               </MenuItem>
@@ -107,9 +285,9 @@ export default function DropdownProfile({ align }: {
       </Menu>
 
       {hasMounted && (
-        <LoginModal 
-          isOpen={isLoginModalOpen} 
-          onClose={() => setIsLoginModalOpen(false)} 
+        <WalletStatusModal 
+          isOpen={isWalletStatusModalOpen} 
+          onClose={() => setIsWalletStatusModalOpen(false)} 
         />
       )}
     </>
