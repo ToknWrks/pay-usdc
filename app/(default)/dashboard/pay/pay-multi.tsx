@@ -469,50 +469,6 @@ export default function PayMultiPage() {
               </div>
             </div>
 
-            {/* Payment Amount - New Section */}
-            <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                Payment Amount
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Amount per Recipient (USDC)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    min="0"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg"
-                  />
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    This amount will be sent to each recipient in your list
-                  </p>
-                </div>
-                
-                {paymentAmount && validRecipients.length > 0 && (
-                  <div className="flex items-center">
-                    <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">
-                          ${totalAmount.toFixed(6)}
-                        </div>
-                        <div className="text-sm text-blue-700 dark:text-blue-300">
-                          Total Payment
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                          ${paymentAmount} × {validRecipients.length} recipients
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Recipients Form */}
             <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6">
   <div className="flex items-center justify-between mb-6">
@@ -574,7 +530,7 @@ export default function PayMultiPage() {
                           {list.name}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {list.totalRecipients} recipients • ${parseFloat(list.totalAmount).toFixed(2)}
+                          {list.totalRecipients} recipients
                         </div>
                       </div>
                       <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -632,167 +588,200 @@ export default function PayMultiPage() {
     </div>
   </div>
 
-  {/* Remove the CSV import section - move to list management */}
-  
-  {/* Keep your existing recipients form fields */}
-  <div className="space-y-4">
+  {/* Tip about List Management */}
+  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
+    <p className="text-sm text-blue-700 dark:text-blue-300">
+      💡 <strong>Tip:</strong> Use "Manage Lists" to import CSV files, organize recipients, and download templates.
+    </p>
+  </div>
+
+  {/* Recipients Form - Compact Layout */}
+  <div className="space-y-3">
     {recipients.map((recipient, index) => (
-      <div key={recipient.id} className={`p-4 border rounded-lg ${
+      <div key={recipient.id} className={`p-3 border rounded-lg ${
         recipient.isValid ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/10' :
         recipient.address ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10' :
         'border-gray-200 dark:border-gray-600'
       }`}>
-        <div className="flex items-center justify-between mb-3">
+        {/* Header with Recipient # and Remove Button */}
+        <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Recipient {index + 1}
-            {recipient.name && (
-              <span className="ml-2 text-blue-600 dark:text-blue-400">
-                ({recipient.name})
-              </span>
-            )}
           </span>
           {recipients.length > 1 && (
             <button
               onClick={() => removeRecipient(recipient.id)}
-              className="text-red-500 hover:text-red-700 transition-colors"
+              className="text-red-500 hover:text-red-700 transition-colors p-1"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           )}
         </div>
         
-        <div className="grid grid-cols-1 gap-4">
-          {/* Name Field */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {/* Compact Form Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+          {/* Name Field - 2 columns on desktop */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
               Name (Optional)
             </label>
             <input
               type="text"
               value={recipient.name}
               onChange={(e) => updateRecipient(recipient.id, 'name', e.target.value)}
-              placeholder="e.g., John Doe, Team Member, etc."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              placeholder="e.g., John Doe"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
           
-          {/* Address and Amount Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Noble Address
-              </label>
-              <input
-                type="text"
-                value={recipient.address}
-                onChange={(e) => updateRecipient(recipient.id, 'address', e.target.value)}
-                placeholder="noble1..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
+          {/* Address Field - 3 columns on desktop */}
+          <div className="md:col-span-3">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              Noble Address
+            </label>
+            <input
+              type="text"
+              value={recipient.address}
+              onChange={(e) => updateRecipient(recipient.id, 'address', e.target.value)}
+              placeholder="noble1..."
+              className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
           </div>
         </div>
+        
+        {/* Status Indicator */}
+        {recipient.address && (
+          <div className="mt-2 flex items-center">
+            <div className={`w-2 h-2 rounded-full mr-2 ${
+              recipient.isValid ? 'bg-green-500' : 'bg-red-500'
+            }`}></div>
+            <span className={`text-xs ${
+              recipient.isValid ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+            }`}>
+              {recipient.isValid ? 'Valid address' : 'Invalid Noble address'}
+            </span>
+          </div>
+        )}
       </div>
     ))}
   </div>
+</div>
 
-  {/* Move CSV and template functionality to list management */}
-  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
-    <p className="text-sm text-blue-700 dark:text-blue-300">
-      💡 <strong>Tip:</strong> Use the "Manage Lists" page to import CSV files, organize recipients, and download templates.
-    </p>
+{/* Payment Amount, Summary & Send Button - Combined Card */}
+<div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6">
+  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+    Payment Details
+  </h2>
+  
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    {/* Payment Amount Section */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Amount per Recipient (USDC)
+      </label>
+      <input
+        type="number"
+        step="0.000001"
+        min="0"
+        value={paymentAmount}
+        onChange={(e) => setPaymentAmount(e.target.value)}
+        placeholder="0.00"
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg"
+      />
+      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        This amount will be sent to each recipient in your list
+      </p>
+    </div>
+    
+    {/* Transaction Summary */}
+    <div>
+      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+        Transaction Summary
+      </h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="text-center">
+          <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            {validRecipients.length}
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">
+            Valid Recipients
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="text-xl font-bold text-blue-600">
+            ${totalAmount.toFixed(2)}
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">
+            Total Amount
+          </div>
+        </div>
+      </div>
+      
+      {paymentAmount && validRecipients.length > 0 && (
+        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="text-center">
+            <div className="text-xs text-gray-600 dark:text-gray-400">
+              ${paymentAmount} × {validRecipients.length} recipients = ${totalAmount.toFixed(6)}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+
+  {/* Balance Check */}
+  {hasInsufficientBalance && totalAmount > 0 && (
+    <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg">
+      <p className="text-sm text-red-700 dark:text-red-300">
+        ⚠️ Insufficient balance. You need ${totalAmount.toFixed(6)} USDC but only have ${currentBalance.toFixed(6)} USDC.
+      </p>
+    </div>
+  )}
+  
+  {/* Send Button */}
+  <div className="mt-6">
+    <button
+      onClick={handleSend}
+      disabled={!canSend || isSending || hasInsufficientBalance}
+      className={`w-full py-4 px-6 rounded-lg font-medium text-lg transition-all ${
+        canSend && !isSending && !hasInsufficientBalance
+          ? 'bg-blue-500 hover:bg-blue-600 text-white transform hover:scale-[1.02]'
+          : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+      }`}
+    >
+      {isSending ? (
+        <div className="flex items-center justify-center">
+          <svg className="animate-spin w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          {sendingProgress || 'Sending USDC...'}
+        </div>
+      ) : canSend && !hasInsufficientBalance ? (
+        `Send ${totalAmount.toFixed(6)} USDC to ${validRecipients.length} Recipients`
+      ) : !nobleConnected ? (
+        'Connect Noble Wallet to Continue'
+      ) : hasInsufficientBalance ? (
+        'Insufficient USDC Balance'
+      ) : validRecipients.length === 0 ? (
+        'Add Valid Recipients to Continue'
+      ) : !paymentAmount ? (
+        'Enter Payment Amount to Continue'
+      ) : (
+        'Enter Amount to Continue'
+      )}
+    </button>
+    
+    {!nobleConnected && (
+      <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-3">
+        You need to connect your Noble wallet to send USDC
+      </p>
+    )}
   </div>
 </div>
 
-            {/* Transaction Summary */}
-            <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                Transaction Summary
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    {recipients.length}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Total Recipients
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {validRecipients.length}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Valid Recipients
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    ${totalAmount.toFixed(6)}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Total Amount
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    ~$0.10
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Est. Gas Fee
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Send Button */}
-            <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6">
-              {hasInsufficientBalance && totalAmount > 0 && (
-                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg">
-                  <p className="text-sm text-red-700 dark:text-red-300">
-                    ⚠️ Insufficient balance. You need ${totalAmount.toFixed(6)} USDC but only have ${currentBalance.toFixed(6)} USDC.
-                  </p>
-                </div>
-              )}
-              
-              <button
-                onClick={handleSend}
-                disabled={!canSend || isSending || hasInsufficientBalance}
-                className={`w-full py-4 px-6 rounded-lg font-medium text-lg transition-all ${
-                  canSend && !isSending && !hasInsufficientBalance
-                    ? 'bg-blue-500 hover:bg-blue-600 text-white transform hover:scale-[1.02]'
-                    : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {isSending ? (
-                  <div className="flex items-center justify-center">
-                    <svg className="animate-spin w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    {sendingProgress || 'Sending USDC...'}
-                  </div>
-                ) : canSend && !hasInsufficientBalance ? (
-                  `Send ${totalAmount.toFixed(6)} USDC to ${validRecipients.length} Recipients`
-                ) : !nobleConnected ? (
-                  'Connect Noble Wallet to Continue'
-                ) : hasInsufficientBalance ? (
-                  'Insufficient USDC Balance'
-                ) : validRecipients.length === 0 ? (
-                  'Add Valid Recipients to Continue'
-                ) : (
-                  'Enter Amount to Continue'
-                )}
-              </button>
-              
-              {!nobleConnected && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-3">
-                  You need to connect your Noble wallet to send USDC
-                </p>
-              )}
-            </div>
           </div>
 
           {/* Right Side - Transaction History */}

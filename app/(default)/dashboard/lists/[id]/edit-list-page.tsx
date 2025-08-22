@@ -454,50 +454,55 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
           </button>
         </div>
 
-        <div className="space-y-4">
+        {/* Recipients - Compact Layout */}
+        <div className="space-y-3">
           {recipients.map((recipient, index) => (
-            <div key={recipient.id} className={`p-4 border rounded-lg ${
+            <div key={recipient.id} className={`p-3 border rounded-lg ${
               recipient.isValid ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/10' :
               recipient.address ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10' :
               'border-gray-200 dark:border-gray-600'
             }`}>
-              <div className="flex items-center justify-between mb-3">
+              {/* Header with Recipient # and Remove Button */}
+              <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Recipient {index + 1}
                   {recipient.name && (
-                    <span className="ml-2 text-blue-600 dark:text-blue-400">
-                      ({recipient.name})
+                    <span className="ml-2 text-blue-600 dark:text-blue-400 font-normal">
+                      • {recipient.name}
                     </span>
                   )}
                 </span>
                 {recipients.length > 1 && (
                   <button
                     onClick={() => removeRecipient(recipient.id)}
-                    className="text-red-500 hover:text-red-700 transition-colors"
+                    className="text-red-500 hover:text-red-700 transition-colors p-1"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 )}
               </div>
               
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {/* Compact Form Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                {/* Name Field - 2 columns on desktop */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                     Name (Optional)
                   </label>
                   <input
                     type="text"
                     value={recipient.name}
                     onChange={(e) => updateRecipient(recipient.id, 'name', e.target.value)}
-                    placeholder="e.g., John Doe, Team Member, etc."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="e.g., John Doe"
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {/* Address Field - 3 columns on desktop */}
+                <div className="md:col-span-3">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                     Noble Address
                   </label>
                   <input
@@ -505,10 +510,24 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
                     value={recipient.address}
                     onChange={(e) => updateRecipient(recipient.id, 'address', e.target.value)}
                     placeholder="noble1..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
                 </div>
               </div>
+              
+              {/* Status Indicator */}
+              {recipient.address && (
+                <div className="mt-2 flex items-center">
+                  <div className={`w-2 h-2 rounded-full mr-2 ${
+                    recipient.isValid ? 'bg-green-500' : 'bg-red-500'
+                  }`}></div>
+                  <span className={`text-xs ${
+                    recipient.isValid ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+                  }`}>
+                    {recipient.isValid ? 'Valid address' : 'Invalid Noble address'}
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>
