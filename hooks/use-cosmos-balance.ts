@@ -39,8 +39,6 @@ export function useCosmosBalance(chainName: string) {
     const chainNameMap: { [key: string]: string } = {
       'osmosis': 'Osmosis',
       'cosmoshub': 'Cosmos Hub',
-      'juno': 'Juno',
-      'stargaze': 'Stargaze',
       'noble': 'Noble',
     }
     

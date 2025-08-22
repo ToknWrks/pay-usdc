@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1755797109986,
+      "tag": "0000_luxuriant_infant_terrible",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1755831194088,
+      "tag": "0001_curved_wallop",
+      "breakpoints": true
+    }
+  ]
+}

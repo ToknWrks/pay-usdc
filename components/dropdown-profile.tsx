@@ -8,6 +8,7 @@ import { useAccount, useDisconnect } from 'wagmi'
 import { useCosmosWallet } from '@/hooks/use-cosmos-wallet'
 import { useCosmosBalance } from '@/hooks/use-cosmos-balance'
 import { useEvmBalance } from '@/hooks/use-evm-balance'
+import { useUserManagement } from '@/hooks/use-user-management'
 import UserAvatar from '@/public/images/user-avatar-32.png'
 import WalletStatusModal from '@/components/wallet-status-modal'
 
@@ -32,14 +33,17 @@ export default function DropdownProfile({ align }: {
   // Add Noble balance
   const nobleBalance = useCosmosBalance('noble')
 
+  // User management
+  const { user, createOrUpdateUser, isLoading: userLoading } = useUserManagement()
+
   // Handle hydration
   useEffect(() => {
     setHasMounted(true)
   }, [])
 
-  const handleSignIn = (e: React.MouseEvent) => {
+  const handleSignIn = async (e: React.MouseEvent) => {
     e.preventDefault()
-    setIsWalletStatusModalOpen(true) // Open wallet status modal instead of AppKit
+    setIsWalletStatusModalOpen(true)
   }
 
   const handleSignOut = async (e: React.MouseEvent) => {
@@ -76,6 +80,27 @@ export default function DropdownProfile({ align }: {
     e.preventDefault()
     setIsWalletStatusModalOpen(true)
   }
+
+  // Log the user data to see it working
+  useEffect(() => {
+    if (user) {
+      console.log('Current user:', user)
+    }
+  }, [user])
+
+  // Log user data when it changes
+  useEffect(() => {
+    if (user) {
+      console.log('User data updated:', user)
+    }
+  }, [user])
+
+  // Log any errors
+  useEffect(() => {
+    if (userLoading) {
+      console.log('User management loading...')
+    }
+  }, [userLoading])
 
   // Check if any wallet is connected
   const isAnyWalletConnected = hasMounted && (

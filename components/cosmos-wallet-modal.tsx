@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { Dialog, DialogPanel, Transition } from '@headlessui/react'
 import { Fragment } from 'react'
 import { useManager } from '@cosmos-kit/react'
+import { useUserManagement } from '@/hooks/use-user-management'
+import { useCosmosWallet } from '@/hooks/use-cosmos-wallet'
 
 interface CosmosWalletModalProps {
   isOpen: boolean
@@ -15,6 +17,8 @@ export default function CosmosWalletModal({ isOpen, onClose, chainName = 'osmosi
   const [selectedWallet, setSelectedWallet] = useState<string>('')
   const [isConnecting, setIsConnecting] = useState(false)
   const { getWalletRepo } = useManager()
+  const { createOrUpdateUser } = useUserManagement()
+  const nobleWallet = useCosmosWallet('noble')
 
   const walletOptions = [
     {
@@ -72,11 +76,28 @@ export default function CosmosWalletModal({ isOpen, onClose, chainName = 'osmosi
     }
   }, [isOpen, chainName])
 
+  useEffect(() => {
+    if (nobleWallet.isConnected && nobleWallet.address && chainName === 'noble') {
+      console.log('🏛️ Noble wallet connected via hook with address:', nobleWallet.address)
+      
+      // Create user when Noble connects
+      fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nobleAddress: nobleWallet.address })
+      })
+      .then(r => r.json())
+      .then(data => console.log('✅ User created via hook:', data))
+      .catch(error => console.error('❌ Error creating user via hook:', error))
+    }
+  }, [nobleWallet.isConnected, nobleWallet.address, chainName])
+
   const handleWalletConnect = async (walletName: string) => {
     setIsConnecting(true)
     setSelectedWallet(walletName)
     
     try {
+      console.log(`🔗 Attempting to connect to ${chainName} with ${walletName}`)
       const walletRepo = getWalletRepo(chainName)
       const wallet = walletRepo.getWallet(walletName)
       
@@ -91,8 +112,13 @@ export default function CosmosWalletModal({ isOpen, onClose, chainName = 'osmosi
         }
       }
 
+      console.log(`🔗 Connecting to ${chainName}...`)
       await wallet.connect()
-      console.log(`Connected to ${chainName} with ${walletName}`)
+      console.log(`✅ Connected to ${chainName} with ${walletName}`)
+      
+      // Remove all the user creation logic from here
+      // The useEffect will handle it automatically
+      
       onClose()
     } catch (error) {
       console.error(`Failed to connect with ${walletName}:`, error)
@@ -104,7 +130,6 @@ export default function CosmosWalletModal({ isOpen, onClose, chainName = 'osmosi
         } else if (error.message.includes('not found')) {
           alert(`${getWalletDisplayName(walletName)} wallet is not available for ${chainName}`)
         } else if (error.message.includes('User rejected')) {
-          // User cancelled the connection - don't show error
           console.log('User rejected wallet connection')
         } else {
           alert(`Failed to connect: ${error.message}`)
@@ -113,6 +138,31 @@ export default function CosmosWalletModal({ isOpen, onClose, chainName = 'osmosi
     } finally {
       setIsConnecting(false)
       setSelectedWallet('')
+    }
+  }
+
+  // Helper function to create user
+  const createUser = async (address: string) => {
+    console.log('🆕 Creating user with Noble address:', address)
+    
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nobleAddress: address })
+      })
+      
+      console.log('API response status:', response.status)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ User created/updated successfully:', data)
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Failed to create/update user:', errorText)
+      }
+    } catch (error) {
+      console.error('❌ Error calling API:', error)
     }
   }
 

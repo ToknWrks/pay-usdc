@@ -1,0 +1,95 @@
+{
+  "id": "d9b1c8f1-8530-4763-9533-07574ee740f2",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "evm_address": {
+          "name": "evm_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "noble_address": {
+          "name": "noble_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "osmosis_address": {
+          "name": "osmosis_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cosmoshub_address": {
+          "name": "cosmoshub_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preferred_wallet": {
+          "name": "preferred_wallet",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "last_login_at": {
+          "name": "last_login_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
