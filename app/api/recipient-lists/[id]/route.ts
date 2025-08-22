@@ -38,6 +38,64 @@ export async function GET(
   }
 }
 
+// Update a list and its recipients
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const listId = parseInt(params.id)
+    const body = await request.json()
+    const { name, description, recipients } = body
+
+    if (!name || !recipients || !Array.isArray(recipients)) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Only calculate total recipients
+    const totalRecipients = recipients.length
+
+    // Update the list info
+    const updatedList = await db
+      .update(recipientLists)
+      .set({
+        name,
+        description: description || null,
+        totalRecipients,
+        updatedAt: new Date(),
+      })
+      .where(eq(recipientLists.id, listId))
+      .returning()
+
+    if (updatedList.length === 0) {
+      return NextResponse.json({ error: 'List not found' }, { status: 404 })
+    }
+
+    // Delete existing recipients
+    await db.delete(savedRecipients).where(eq(savedRecipients.listId, listId))
+
+    // Add new recipients (no amount field)
+    if (recipients.length > 0) {
+      const recipientData = recipients.map((recipient: any, index: number) => ({
+        listId,
+        name: recipient.name || null,
+        address: recipient.address,
+        order: index,
+      }))
+
+      await db.insert(savedRecipients).values(recipientData)
+    }
+
+    return NextResponse.json({ 
+      list: updatedList[0],
+      message: 'List updated successfully' 
+    })
+  } catch (error) {
+    console.error('Error updating recipient list:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 // Delete a list
 export async function DELETE(
   request: NextRequest,

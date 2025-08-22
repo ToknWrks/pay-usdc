@@ -60,7 +60,6 @@ export function useRecipientLists(ownerAddress?: string) {
     recipients: Array<{
       name?: string
       address: string
-      amount: string
     }>
   }) => {
     if (!ownerAddress) throw new Error('No owner address')
@@ -107,6 +106,34 @@ export function useRecipientLists(ownerAddress?: string) {
     }
   }
 
+  const updateList = async (listId: number, listData: {
+    name: string
+    description?: string
+    recipients: Array<{
+      name?: string
+      address: string
+    }>
+  }) => {
+    try {
+      const response = await fetch(`/api/recipient-lists/${listId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(listData)
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update list')
+      }
+
+      const data = await response.json()
+      await fetchLists() // Refresh the lists
+      return data.list
+    } catch (error) {
+      console.error('Error updating list:', error)
+      throw error
+    }
+  }
+
   const deleteList = async (listId: number) => {
     try {
       const response = await fetch(`/api/recipient-lists/${listId}`, {
@@ -137,6 +164,7 @@ export function useRecipientLists(ownerAddress?: string) {
     fetchLists,
     createList,
     loadList,
+    updateList,
     deleteList,
   }
 }

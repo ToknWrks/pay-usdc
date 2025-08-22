@@ -35,9 +35,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Calculate totals
+    // Only calculate total recipients (no amounts)
     const totalRecipients = recipients.length
-    const totalAmount = recipients.reduce((sum: number, r: any) => sum + parseFloat(r.amount || '0'), 0)
 
     // Create the list
     const newList = await db.insert(recipientLists).values({
@@ -45,18 +44,16 @@ export async function POST(request: NextRequest) {
       name,
       description,
       totalRecipients,
-      totalAmount: totalAmount.toString(),
     }).returning()
 
     const listId = newList[0].id
 
-    // Add recipients to the list
+    // Add recipients to the list (no amount field)
     if (recipients.length > 0) {
       const recipientData = recipients.map((recipient: any, index: number) => ({
         listId,
         name: recipient.name || null,
         address: recipient.address,
-        amount: recipient.amount,
         order: index,
       }))
 

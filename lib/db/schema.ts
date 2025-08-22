@@ -9,26 +9,24 @@ export const users = pgTable('users', {
   lastLoginAt: timestamp('last_login_at'),
 })
 
-// New: Recipient Lists table
+// Updated: Recipient Lists table - Remove totalAmount field since amounts are dynamic
 export const recipientLists = pgTable('recipient_lists', {
   id: serial('id').primaryKey(),
   ownerAddress: text('owner_address').notNull(),
   name: text('name').notNull(),
   description: text('description'),
   totalRecipients: integer('total_recipients').default(0),
-  totalAmount: decimal('total_amount', { precision: 18, scale: 6 }).default('0'),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })
 
-// New: Recipients table (for saved lists)
+// Updated: Recipients table (for saved lists) - Remove amount field
 export const savedRecipients = pgTable('saved_recipients', {
   id: serial('id').primaryKey(),
   listId: integer('list_id').references(() => recipientLists.id).notNull(),
   name: text('name'),
   address: text('address').notNull(),
-  amount: decimal('amount', { precision: 18, scale: 6 }).notNull(),
   order: integer('order').default(0),
   createdAt: timestamp('created_at').defaultNow(),
 })
