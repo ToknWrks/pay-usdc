@@ -337,97 +337,115 @@ export default function PayMultiPage() {
               </div>
             </div>
 
-            {/* Payment Amount, Summary & Send Button */}
+            {/* Payment Amount, Summary & Send Button - Complete section */}
             <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 Payment Details
               </h2>
               
-              {loadedListType === 'percentage' ? (
-                // Fund Split: Show total amount input
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Total Fund Amount (USDC)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.000001"
-                      min="0"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg"
-                    />
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      Total amount to split among recipients based on their percentages
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Distribution Preview
-                    </h3>
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                      {validRecipients.map((recipient) => (
-                        <div key={recipient.id} className="flex justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400 truncate">
-                            {recipient.name || 'Recipient'}
-                          </span>
-                          <span className="font-mono text-gray-900 dark:text-gray-100">
-                            ${((parseFloat(paymentAmount) || 0) * (parseFloat(recipient.percentage || '0') / 100)).toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Payment Amount Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {loadedListType === 'percentage' ? 'Total Fund Amount (USDC)' : 'Amount per Recipient (USDC)'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    min="0"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg"
+                  />
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {loadedListType === 'percentage' 
+                      ? 'Split among recipients based on their %'
+                      : 'This amount will be sent to each recipient in your list'
+                    }
+                  </p>
+                </div>
+                
+                {/* Summary Stats */}
+                <div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div className="text-xl pt-7 font-bold text-gray-900 dark:text-gray-100">
+                        {validRecipients.length}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        Recipients
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl pt-7 font-bold text-blue-600">
+                        ${totalAmount.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        Total Amount
+                      </div>
                     </div>
                   </div>
                 </div>
-              ) : (
-                // Fixed Amount: Show per-recipient amount
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Amount per Recipient (USDC)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.000001"
-                      min="0"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg"
-                    />
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      This amount will be sent to each recipient in your list
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Transaction Summary
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center">
-                        <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                          {validRecipients.length}
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                          Recipients
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-xl font-bold text-blue-600">
-                          ${(parseFloat(paymentAmount) * validRecipients.length || 0).toFixed(2)}
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                          Total Amount
-                        </div>
-                      </div>
+              </div>
+
+              {/* Balance Check */}
+              {paymentAmount && validRecipients.length > 0 && (
+                <div className="mt-4">
+                  {hasInsufficientBalance ? (
+                    <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg">
+                      <p className="text-sm text-red-700 dark:text-red-300">
+                        ⚠️ Insufficient balance. You need ${totalAmount.toFixed(6)} USDC but only have ${currentBalance.toFixed(6)} USDC.
+                      </p>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg">
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        ✅ Sufficient balance for this transaction.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
+              
+              {/* Send Button */}
+              <div className="mt-6">
+                <button
+                  onClick={handleSend}
+                  disabled={!canSend || isSending || hasInsufficientBalance}
+                  className={`w-full py-4 px-6 rounded-lg font-medium text-lg transition-all ${
+                    canSend && !isSending && !hasInsufficientBalance
+                      ? 'bg-blue-500 hover:bg-blue-600 text-white transform hover:scale-[1.02]'
+                      : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {isSending ? (
+                    <div className="flex items-center justify-center">
+                      <svg className="animate-spin w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {sendingProgress || 'Sending USDC...'}
+                    </div>
+                  ) : validRecipients.length > 0 && paymentAmount ? (
+                    `Send ${totalAmount.toFixed(2)} USDC to ${validRecipients.length} Recipients`
+                  ) : !nobleConnected ? (
+                    'Connect Noble Wallet to Continue'
+                  ) : validRecipients.length === 0 ? (
+                    'Add Valid Recipients to Continue'
+                  ) : !paymentAmount ? (
+                    'Enter Payment Amount to Continue'
+                  ) : (
+                    'Complete Details to Continue'
+                  )}
+                </button>
+                
+                {!nobleConnected && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-3">
+                    You need to connect your Noble wallet to send USDC
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Recipients Form */}
@@ -692,8 +710,79 @@ export default function PayMultiPage() {
             </div>
           </div>
 
-          {/* Right Side - Transaction History */}
-          <div className="xl:col-span-1">
+          {/* Right Side - Distribution Preview and Transaction History */}
+          <div className="xl:col-span-1 space-y-6">
+            
+            {/* Distribution Preview Card */}
+            {loadedListType === 'percentage' && validRecipients.length > 0 && paymentAmount && (
+              <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl">
+                <header className="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
+                  <h2 className="font-semibold text-gray-800 dark:text-gray-100">
+                    Distribution Preview
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    ${parseFloat(paymentAmount).toFixed(2)} total split by percentages
+                  </p>
+                </header>
+                <div className="p-5">
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {validRecipients.map((recipient) => {
+                      const recipientAmount = (parseFloat(paymentAmount) || 0) * (parseFloat(recipient.percentage || '0') / 100)
+                      return (
+                        <div key={recipient.id} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700/60 last:border-b-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-medium mr-3">
+                                {recipient.name?.charAt(0) || (recipient.address.slice(6, 8).toUpperCase())}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                  {recipient.name || `Recipient ${validRecipients.indexOf(recipient) + 1}`}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">
+                                  {recipient.address.slice(0, 12)}...{recipient.address.slice(-8)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right ml-3">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                              ${recipientAmount.toFixed(2)}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {recipient.percentage}%
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  
+                  {/* Total Validation */}
+                  <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/60">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Total Allocation
+                      </span>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          ${parseFloat(paymentAmount).toFixed(2)}
+                        </div>
+                        <div className={`text-xs font-medium ${
+                          Math.abs(getTotalPercentage() - 100) < 0.01 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {getTotalPercentage().toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Transaction History Card */}
             <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl sticky top-8">
               <header className="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
                 <div className="flex items-center justify-between">
@@ -727,177 +816,126 @@ export default function PayMultiPage() {
                 </div>
               </header>
 
-              <div className="p-3">
+              <div className="p-5">
                 {!nobleConnected ? (
-                  <div className="text-center py-8">
-                    <div className="w-9 h-9 mx-auto mb-3 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="text-center py-6">
+                    <div className="w-8 h-8 mx-auto mb-2 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Connect Noble to view history
                     </p>
                   </div>
                 ) : transactionsLoading ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse flex px-2">
-                        <div className="w-9 h-9 bg-gray-200 dark:bg-gray-700 rounded-full my-2 mr-3"></div>
-                        <div className="grow flex items-center border-b border-gray-100 dark:border-gray-700/60 text-sm py-2">
-                          <div className="grow flex justify-between">
-                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
-                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                      <div key={i} className="animate-pulse">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                          <div className="flex-1">
+                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : transactions.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-9 h-9 mx-auto mb-3 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="text-center py-6">
+                    <div className="w-8 h-8 mx-auto mb-2 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                       </svg>
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">No transactions yet</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">No transactions yet</p>
                   </div>
                 ) : (
-                  <>
-                    {/* Group transactions by date */}
-                    {(() => {
-                      const groupedTransactions = transactions.reduce((groups: any, transaction) => {
-                        const date = new Date(transaction.createdAt).toDateString()
-                        if (!groups[date]) {
-                          groups[date] = []
-                        }
-                        groups[date].push(transaction)
-                        return groups
-                      }, {})
-
-                      const today = new Date().toDateString()
-                      const yesterday = new Date(Date.now() - 86400000).toDateString()
-
-                      return Object.entries(groupedTransactions).map(([date, dateTransactions]: [string, any]) => {
-                        let displayDate = date
-                        if (date === today) displayDate = 'Today'
-                        else if (date === yesterday) displayDate = 'Yesterday'
-                        else displayDate = new Date(date).toLocaleDateString(undefined, { 
-                          weekday: 'short', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })
-
-                        return (
-                          <div key={date} className="mb-4">
-                            <header className="text-xs uppercase text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700 dark:bg-opacity-50 rounded-sm font-semibold p-2 mb-1">
-                              {displayDate}
-                            </header>
-                            <ul className="space-y-0">
-                              {(dateTransactions as any[]).slice(0, 10).map((transaction, index) => {
-                                const isBatch = transaction.batchId && transaction.totalRecipients && transaction.totalRecipients > 1
-                                const isLast = index === (dateTransactions as any[]).length - 1
-
-                                return (
-                                  <li key={transaction.id} className="flex px-2 group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                    {/* Status Icon */}
-                                    <div className={`w-9 h-9 rounded-full shrink-0 my-2 mr-3 flex items-center justify-center ${
-                                      transaction.status === 'confirmed' ? 'bg-green-500' :
-                                      transaction.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
-                                    }`}>
-                                      {transaction.status === 'confirmed' ? (
-                                        <svg className="w-5 h-5 fill-current text-white" viewBox="0 0 20 20">
-                                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                                        </svg>
-                                      ) : transaction.status === 'pending' ? (
-                                        <svg className="w-5 h-5 fill-current text-white" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
-                                        </svg>
-                                      ) : (
-                                        <svg className="w-5 h-5 fill-current text-white" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                                        </svg>
-                                      )}
-                                    </div>
-
-                                    {/* Transaction Details */}
-                                    <div className={`grow flex items-center text-sm py-2 ${
-                                      !isLast ? 'border-b border-gray-100 dark:border-gray-700/60' : ''
-                                    }`}>
-                                      <div className="grow flex justify-between">
-                                        <div className="self-center min-w-0 flex-1">
-                                          <div className="flex items-center">
-                                            <a className="font-medium text-gray-800 hover:text-gray-900 dark:text-gray-100 dark:hover:text-white truncate" href="#0">
-                                              {transaction.recipientName || 'Payment'}
-                                            </a>
-                                            {isBatch && (
-                                              <span className="ml-2 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded font-medium">
-                                                {transaction.totalRecipients}x
-                                              </span>
-                                            )}
-                                          </div>
-                                          <div className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
-                                            {transaction.recipientAddress.slice(0, 8)}...{transaction.recipientAddress.slice(-6)}
-                                          </div>
-                                          {/* Explorer link - only visible on group hover */}
-                                          {transaction.txHash && transaction.txHash !== 'failed' && (
-                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <a
-                                                href={`https://mintscan.io/noble/txs/${transaction.txHash}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center mt-1"
-                                              >
-                                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                                </svg>
-                                                Explorer
-                                              </a>
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="shrink-0 self-start ml-2 text-right">
-                                          <span className={`font-medium ${
-                                            transaction.status === 'confirmed' ? 'text-green-600' :
-                                            transaction.status === 'failed' ? 'text-red-600 line-through' :
-                                            'text-gray-800 dark:text-gray-100'
-                                          }`}>
-                                            {transaction.status === 'confirmed' ? '+' : transaction.status === 'failed' ? '-' : ''}${parseFloat(transaction.amount).toFixed(2)}
-                                          </span>
-                                          {isBatch && (
-                                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                              ${parseFloat(transaction.totalAmount || '0').toFixed(2)} total
-                                            </div>
-                                          )}
-                                          <div className="text-xs text-gray-400 dark:text-gray-500">
-                                            {new Date(transaction.createdAt).toLocaleTimeString(undefined, { 
-                                              hour: '2-digit',
-                                              minute: '2-digit'
-                                            })}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </li>
-                                )
-                              })}
-                            </ul>
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {transactions.slice(0, 15).map((transaction) => {
+                      const isBatch = transaction.batchId && transaction.totalRecipients && transaction.totalRecipients > 1
+                      const statusColor = transaction.status === 'confirmed' ? 'green' :
+                                         transaction.status === 'pending' ? 'yellow' : 'red'
+                      
+                      return (
+                        <div key={transaction.id} className="group">
+                          <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700/60 last:border-b-0">
+                            <div className="flex items-center min-w-0 flex-1">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium mr-3 ${
+                                statusColor === 'green' ? 'bg-green-500' :
+                                statusColor === 'yellow' ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}>
+                                {transaction.recipientName?.charAt(0) || '$'}
+                              </div>
+                              
+                              <div className="min-w-0 flex-1">
+                                {/* Batch info */}
+                                {isBatch && (
+                                  <div className="flex items-center mb-1">
+                                    <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded text-[10px] font-medium">
+                                      {transaction.totalRecipients}x BATCH
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                    {transaction.recipientName || 'Payment'}
+                                  </p>
+                                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 ml-2">
+                                    ${parseFloat(transaction.amount).toFixed(2)}
+                                  </span>
+                                </div>
+                                
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">
+                                    {transaction.recipientAddress.slice(0, 8)}...{transaction.recipientAddress.slice(-6)}
+                                  </p>
+                                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
+                                    {new Date(transaction.createdAt).toLocaleDateString(undefined, { 
+                                      month: 'short', 
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        )
-                      })
-                    })()}
-
+                          
+                          {/* Explorer link - only visible on hover */}
+                          {transaction.txHash && transaction.txHash !== 'failed' && (
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity pl-11 pb-2">
+                              <a
+                                href={`https://mintscan.io/noble/txs/${transaction.txHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center"
+                              >
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                                View on Explorer
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    
                     {transactions.length > 15 && (
                       <div className="text-center pt-3 border-t border-gray-100 dark:border-gray-700/60">
-                        <button className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                        <button className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
                           View All ({transactions.length})
                         </button>
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
 
-                {/* Quick Stats Footer */}
+                {/* Quick Stats */}
                 {transactions.length > 0 && (
                   <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/60">
                     <div className="grid grid-cols-2 gap-3 text-center">
