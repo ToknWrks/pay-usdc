@@ -428,7 +428,7 @@ export default function PayMultiPage() {
                       {sendingProgress || 'Sending USDC...'}
                     </div>
                   ) : validRecipients.length > 0 && paymentAmount ? (
-                    `Send ${totalAmount.toFixed(2)} USDC to ${validRecipients.length} Recipients`
+                    `Send ${totalAmount.toFixed(6)} USDC to ${validRecipients.length} Recipients`
                   ) : !nobleConnected ? (
                     'Connect Noble Wallet to Continue'
                   ) : validRecipients.length === 0 ? (
