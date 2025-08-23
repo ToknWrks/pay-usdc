@@ -133,7 +133,7 @@ export default function Sidebar({
   <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v.816a3.836 3.836 0 0 0-1.72.756c-.712.566-1.112 1.35-1.112 2.178 0 .829.4 1.612 1.113 2.178.502.4 1.102.647 1.719.756v2.978a2.536 2.536 0 0 1-.921-.421l-.879-.66a.75.75 0 0 0-.9 1.2l.879.66c.533.4 1.169.645 1.821.75V18a.75.75 0 0 0 1.5 0v-.81a4.124 4.124 0 0 0 1.821-.749c.745-.559 1.179-1.344 1.179-2.191 0-.847-.434-1.632-1.179-2.191a4.122 4.122 0 0 0-1.821-.75V8.354c.29.082.559.213.786.393l.415.33a.75.75 0 0 0 .933-1.175l-.415-.33a3.836 3.836 0 0 0-1.719-.755V6Z" clipRule="evenodd" />
 </svg>
                             <span className="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">
-                              Pay
+                              Dashboard
                             </span>
                           </div>
                           {/* Icon */}
@@ -146,7 +146,7 @@ export default function Sidebar({
                       </a>
                       <div className="lg:hidden lg:sidebar-expanded:block 2xl:block">
                         <ul className={`pl-8 mt-1 ${!open && 'hidden'}`}>
-                          <li className="mb-1 last:mb-0">
+                          {/* <li className="mb-1 last:mb-0">
                             <SidebarLink href="/dashboard">
                               <span className="text-sm font-medium lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">
                                 Main
@@ -166,31 +166,26 @@ export default function Sidebar({
                                 Fintech
                               </span>
                             </SidebarLink>
+                          </li> */}
+                          <li className="mb-1 last:mb-0">
+                            <SidebarLink href="/dashboard/pay">
+                              <span className="text-sm font-medium lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">
+                                Pay
+                              </span>
+                            </SidebarLink>
+                          </li>
+                          <li className="mb-1 last:mb-0">
+                            <SidebarLink href="/dashboard/lists">
+                              <span className="text-sm font-medium lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">
+                                Lists
+                              </span>
+                            </SidebarLink>
                           </li>
                           <li className="mb-1 last:mb-0">
                             <SidebarLink href="/dashboard/wallets">
                               <span className="text-sm font-medium lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">
                                 Wallets
                               </span>
-                            </SidebarLink>
-                          </li>
-                          <li className="mb-1 last:mb-0">
-                            <SidebarLink href="/dashboard/payees">
-                              <span className="text-sm font-medium lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">
-                                Payees
-                              </span>
-                            </SidebarLink>
-                          </li>
-                          <li className={`pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-[linear-gradient(135deg,var(--tw-gradient-stops))] ${segments.includes('lists') && 'from-violet-500/[0.12] dark:from-violet-500/[0.24] to-violet-500/[0.04]'}`}>
-                            <SidebarLink href="/dashboard/lists">
-                              <div className="flex items-center">
-                                <svg className={`shrink-0 fill-current ${segments.includes('lists') ? 'text-violet-500' : 'text-gray-400 dark:text-gray-500'}`} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-                                  <path d="M3 2h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm1 2v8h8V4H4zm1 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
-                                </svg>
-                                <span className="text-sm font-medium ml-4 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">
-                                  Recipient Lists
-                                </span>
-                              </div>
                             </SidebarLink>
                           </li>
                         </ul>
@@ -204,6 +199,7 @@ export default function Sidebar({
              
              
               {/* Settings */}
+              {/*
               <SidebarLinkGroup open={segments.includes('settings')}>
                 {(handleClick, open) => {
                   return (
@@ -226,7 +222,9 @@ export default function Sidebar({
                               Settings
                             </span>
                           </div>
+                          */}
                           {/* Icon */}
+                          {/*
                           <div className="flex shrink-0 ml-2">
                             <svg
                               className={`w-3 h-3 shrink-0 ml-1 fill-current text-gray-400 dark:text-gray-500 ${open && 'rotate-180'}`}
@@ -286,7 +284,7 @@ export default function Sidebar({
                     </>
                   )
                 }}
-              </SidebarLinkGroup>
+              </SidebarLinkGroup> */}
               
             </ul>
           </div>
