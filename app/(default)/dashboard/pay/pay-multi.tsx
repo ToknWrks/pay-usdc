@@ -16,6 +16,8 @@ interface Recipient {
   id: string
   name: string
   address: string
+  amount?: string // Optional for loaded lists
+  percentage?: string // For fund split lists
   isValid: boolean
 }
 
@@ -34,6 +36,8 @@ export default function PayMultiPage() {
   const [saveListDescription, setSaveListDescription] = useState('')
   const [isSavingList, setIsSavingList] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState('')
+  const [listType, setListType] = useState<'fixed' | 'percentage'>('fixed')
+  const [loadedListType, setLoadedListType] = useState<'fixed' | 'percentage'>('fixed')
 
   // EVM Wallet
   const { isConnected: evmConnected, address: evmAddress, connector } = useAccount()
@@ -102,7 +106,7 @@ export default function PayMultiPage() {
   }
 
   // Update recipient
-  const updateRecipient = (id: string, field: 'name' | 'address', value: string) => {
+  const updateRecipient = (id: string, field: 'name' | 'address' | 'percentage', value: string | number) => {
     setRecipients(recipients.map(recipient => {
       if (recipient.id === id) {
         const updated = { ...recipient, [field]: value }
@@ -121,8 +125,14 @@ export default function PayMultiPage() {
 
   // Calculate totals
   const validRecipients = recipients.filter(r => r.isValid)
-  const totalAmount = validRecipients.length * parseFloat(paymentAmount || '0')
+  const totalAmount = loadedListType === 'percentage' 
+    ? parseFloat(paymentAmount || '0') // Total fund amount
+    : validRecipients.length * parseFloat(paymentAmount || '0') // Per recipient × count
   const canSend = validRecipients.length > 0 && nobleConnected && totalAmount > 0 && parseFloat(paymentAmount || '0') > 0
+
+  const getTotalPercentage = () => {
+    return recipients.reduce((sum, recipient) => sum + (parseFloat(recipient.percentage as string) || 0), 0)
+  }
 
   // Handle send with real Noble transactions
   const handleSend = async () => {
@@ -214,16 +224,19 @@ export default function PayMultiPage() {
     try {
       const { list, recipients } = await loadList(listId)
       
+      setLoadedListType(list.listType || 'fixed') // Set the loaded list type
+      
       const convertedRecipients = recipients.map((r: any, index: number) => ({
         id: `loaded-${r.id}-${Date.now()}-${index}`,
         name: r.name || '',
         address: r.address,
+        percentage: r.percentage || undefined,
         isValid: validateRecipient(r.address)
       }))
 
       setRecipients(convertedRecipients)
       setShowListSelector(false)
-      alert(`✅ Loaded "${list.name}" with ${recipients.length} recipients`)
+      alert(`✅ Loaded "${list.name}" (${list.listType === 'percentage' ? 'Fund Split' : 'Fixed Amount'}) with ${recipients.length} recipients`)
     } catch (error) {
       alert(`❌ Failed to load list: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -330,119 +343,91 @@ export default function PayMultiPage() {
                 Payment Details
               </h2>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Payment Amount Section */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Amount per Recipient (USDC)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    min="0"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg"
-                  />
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    This amount will be sent to each recipient in your list
-                  </p>
-                </div>
-                
-                {/* Transaction Summary */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Transaction Summary
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                        {validRecipients.length}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        Valid Recipients
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-blue-600">
-                        ${(parseFloat(paymentAmount) * validRecipients.length || 0).toFixed(2)}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        Total Amount
-                      </div>
-                    </div>
+              {loadedListType === 'percentage' ? (
+                // Fund Split: Show total amount input
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Total Fund Amount (USDC)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      min="0"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg"
+                    />
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Total amount to split among recipients based on their percentages
+                    </p>
                   </div>
                   
-                  {paymentAmount && validRecipients.length > 0 && (
-                    <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      Distribution Preview
+                    </h3>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {validRecipients.map((recipient) => (
+                        <div key={recipient.id} className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400 truncate">
+                            {recipient.name || 'Recipient'}
+                          </span>
+                          <span className="font-mono text-gray-900 dark:text-gray-100">
+                            ${((parseFloat(paymentAmount) || 0) * (parseFloat(recipient.percentage || '0') / 100)).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Fixed Amount: Show per-recipient amount
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Amount per Recipient (USDC)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      min="0"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg"
+                    />
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      This amount will be sent to each recipient in your list
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      Transaction Summary
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="text-center">
+                        <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                          {validRecipients.length}
+                        </div>
                         <div className="text-xs text-gray-600 dark:text-gray-400">
-                          ${paymentAmount} × {validRecipients.length} recipients = ${(parseFloat(paymentAmount) * validRecipients.length).toFixed(6)}
+                          Recipients
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xl font-bold text-blue-600">
+                          ${(parseFloat(paymentAmount) * validRecipients.length || 0).toFixed(2)}
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                          Total Amount
                         </div>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Balance Check */}
-              {paymentAmount && validRecipients.length > 0 && (
-                <div className="mt-4">
-                  {hasInsufficientBalance ? (
-                    <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg">
-                      <p className="text-sm text-red-700 dark:text-red-300">
-                        ⚠️ Insufficient balance. You need ${totalAmount.toFixed(6)} USDC but only have ${currentBalance.toFixed(6)} USDC.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg">
-                      <p className="text-sm text-green-700 dark:text-green-300">
-                        ✅ Sufficient balance for this transaction.
-                      </p>
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
-              
-              {/* Send Button */}
-              <div className="mt-6">
-                <button
-                  onClick={handleSend}
-                  disabled={!canSend || isSending || hasInsufficientBalance}
-                  className={`w-full py-4 px-6 rounded-lg font-medium text-lg transition-all ${
-                    canSend && !isSending && !hasInsufficientBalance
-                      ? 'bg-blue-500 hover:bg-blue-600 text-white transform hover:scale-[1.02]'
-                      : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {isSending ? (
-                    <div className="flex items-center justify-center">
-                      <svg className="animate-spin w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      {sendingProgress || 'Sending USDC...'}
-                    </div>
-                  ) : validRecipients.length > 0 && paymentAmount ? (
-                    `Send ${totalAmount.toFixed(6)} USDC to ${validRecipients.length} Recipients`
-                  ) : !nobleConnected ? (
-                    'Connect Noble Wallet to Continue'
-                  ) : validRecipients.length === 0 ? (
-                    'Add Valid Recipients to Continue'
-                  ) : !paymentAmount ? (
-                    'Enter Payment Amount to Continue'
-                  ) : (
-                    'Complete Details to Continue'
-                  )}
-                </button>
-                
-                {!nobleConnected && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-3">
-                    You need to connect your Noble wallet to send USDC
-                  </p>
-                )}
-              </div>
             </div>
 
             {/* Recipients Form */}
@@ -602,10 +587,9 @@ export default function PayMultiPage() {
                         )}
                       </div>
                       
-                      {/* Compact Form Fields */}
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                        {/* Name Field - 2 columns on desktop */}
-                        <div className="md:col-span-2">
+                      {/* Recipients with Conditional Percentage Field */}
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
                           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                             Name (Optional)
                           </label>
@@ -618,21 +602,58 @@ export default function PayMultiPage() {
                           />
                         </div>
                         
-                        {/* Address Field - 3 columns on desktop */}
-                        <div className="md:col-span-3">
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            Noble Address
-                          </label>
-                          <input
-                            type="text"
-                            value={recipient.address}
-                            onChange={(e) => updateRecipient(recipient.id, 'address', e.target.value)}
-                            placeholder="noble1..."
-                            className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                          />
+                        <div className={`grid ${listType === 'percentage' ? 'grid-cols-3' : 'grid-cols-1'} gap-3`}>
+                          <div className={listType === 'percentage' ? 'col-span-2' : ''}>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                              Noble Address
+                            </label>
+                            <input
+                              type="text"
+                              value={recipient.address}
+                              onChange={(e) => updateRecipient(recipient.id, 'address', e.target.value)}
+                              placeholder="noble1..."
+                              className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            />
+                          </div>
+                          
+                          {listType === 'percentage' && (
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                Share %
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={recipient.percentage || ''}
+                                onChange={(e) => updateRecipient(recipient.id, 'percentage', e.target.value)}
+                                placeholder="25.00"
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
-                      
+
+                      {/* Percentage Validation for Fund Lists */}
+                      {listType === 'percentage' && (
+                        <div className="mt-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">
+                              Total allocation: {getTotalPercentage()}%
+                            </span>
+                            <span className={`font-medium ${
+                              Math.abs(getTotalPercentage() - 100) < 0.01 
+                                ? 'text-green-600 dark:text-green-400' 
+                                : 'text-red-600 dark:text-red-400'
+                            }`}>
+                              {Math.abs(getTotalPercentage() - 100) < 0.01 ? '✓ Balanced' : '⚠ Must equal 100%'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Status Indicator */}
                       {recipient.address && (
                         <div className="mt-2 flex items-center">
@@ -673,188 +694,241 @@ export default function PayMultiPage() {
 
           {/* Right Side - Transaction History */}
           <div className="xl:col-span-1">
-            <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-4 sticky top-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Recent Transactions
-                </h2>
-                <div className="flex items-center space-x-2">
-                  <div className="flex items-center space-x-1">
-                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                      {transactions.filter(tx => tx.status === 'confirmed').length}
-                    </span>
-                    {transactions.filter(tx => tx.status === 'failed').length > 0 && (
-                      <>
-                        <span className="text-xs text-gray-400">/</span>
-                        <span className="text-xs text-red-500 dark:text-red-400 font-medium">
-                          {transactions.filter(tx => tx.status === 'failed').length} failed
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                    title="Refresh"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {!nobleConnected ? (
-                <div className="text-center py-6">
-                  <div className="w-8 h-8 mx-auto mb-2 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Connect Noble to view history
-                  </p>
-                </div>
-              ) : transactionsLoading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="animate-pulse flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                      <div className="flex-1">
-                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-1"></div>
-                        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                      </div>
+            <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl sticky top-8">
+              <header className="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-semibold text-gray-800 dark:text-gray-100">
+                    Recent Transactions
+                  </h2>
+                  <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                        {transactions.filter(tx => tx.status === 'confirmed').length}
+                      </span>
+                      {transactions.filter(tx => tx.status === 'failed').length > 0 && (
+                        <>
+                          <span className="text-xs text-gray-400">/</span>
+                          <span className="text-xs text-red-500 dark:text-red-400 font-medium">
+                            {transactions.filter(tx => tx.status === 'failed').length} failed
+                          </span>
+                        </>
+                      )}
                     </div>
-                  ))}
-                </div>
-              ) : transactions.length === 0 ? (
-                <div className="text-center py-6">
-                  <div className="w-8 h-8 mx-auto mb-2 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                      title="Refresh"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">No transactions yet</p>
                 </div>
-              ) : (
-                <div className="space-y-1 max-h-80 overflow-y-auto">
-                  {transactions.slice(0, 15).map((transaction) => {
-                    const isBatch = transaction.batchId && transaction.totalRecipients && transaction.totalRecipients > 1
-                    const statusColor = transaction.status === 'confirmed' ? 'green' :
-                                       transaction.status === 'pending' ? 'yellow' : 'red'
-                    
-                    return (
-                      <div key={transaction.id} className="group hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg p-2 transition-colors">
-                        <div className="flex items-start justify-between">
-                          {/* Left: Status + Info */}
-                          <div className="flex items-start space-x-2 flex-1 min-w-0">
-                            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                              statusColor === 'green' ? 'bg-green-500' :
-                              statusColor === 'yellow' ? 'bg-yellow-500' : 'bg-red-500'
-                            }`}></div>
-                            
-                            <div className="flex-1 min-w-0">
-                              {/* Batch info */}
-                              {isBatch && (
-                                <div className="flex items-center mb-1">
-                                  <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded text-[10px] font-medium">
-                                    {transaction.totalRecipients}x BATCH
-                                  </span>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                                    ${parseFloat(transaction.totalAmount || '0').toFixed(1)}
-                                  </span>
-                                </div>
-                              )}
-                              
-                              {/* Recipient info */}
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                  {transaction.recipientName || 'Payment'}
-                                </span>
-                                <span className="text-sm font-mono text-gray-900 dark:text-gray-100 ml-2">
-                                  ${parseFloat(transaction.amount).toFixed(2)}
-                                </span>
-                              </div>
-                              
-                              {/* Address + Time */}
-                              <div className="flex items-center justify-between mt-0.5">
-                                <span className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">
-                                  {transaction.recipientAddress.slice(0, 8)}...{transaction.recipientAddress.slice(-6)}
-                                </span>
-                                <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
-                                  {new Date(transaction.createdAt).toLocaleDateString(undefined, { 
-                                    month: 'short', 
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </span>
-                              </div>
-                            </div>
+              </header>
+
+              <div className="p-3">
+                {!nobleConnected ? (
+                  <div className="text-center py-8">
+                    <div className="w-9 h-9 mx-auto mb-3 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Connect Noble to view history
+                    </p>
+                  </div>
+                ) : transactionsLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="animate-pulse flex px-2">
+                        <div className="w-9 h-9 bg-gray-200 dark:bg-gray-700 rounded-full my-2 mr-3"></div>
+                        <div className="grow flex items-center border-b border-gray-100 dark:border-gray-700/60 text-sm py-2">
+                          <div className="grow flex justify-between">
+                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
                           </div>
                         </div>
-                        
-                        {/* Explorer link - only visible on hover */}
-                        {transaction.txHash && transaction.txHash !== 'failed' && (
-                          <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <a
-                              href={`https://mintscan.io/noble/txs/${transaction.txHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center"
-                            >
-                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                              Explorer
-                            </a>
+                      </div>
+                    ))}
+                  </div>
+                ) : transactions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-9 h-9 mx-auto mb-3 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No transactions yet</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Group transactions by date */}
+                    {(() => {
+                      const groupedTransactions = transactions.reduce((groups: any, transaction) => {
+                        const date = new Date(transaction.createdAt).toDateString()
+                        if (!groups[date]) {
+                          groups[date] = []
+                        }
+                        groups[date].push(transaction)
+                        return groups
+                      }, {})
+
+                      const today = new Date().toDateString()
+                      const yesterday = new Date(Date.now() - 86400000).toDateString()
+
+                      return Object.entries(groupedTransactions).map(([date, dateTransactions]: [string, any]) => {
+                        let displayDate = date
+                        if (date === today) displayDate = 'Today'
+                        else if (date === yesterday) displayDate = 'Yesterday'
+                        else displayDate = new Date(date).toLocaleDateString(undefined, { 
+                          weekday: 'short', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })
+
+                        return (
+                          <div key={date} className="mb-4">
+                            <header className="text-xs uppercase text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700 dark:bg-opacity-50 rounded-sm font-semibold p-2 mb-1">
+                              {displayDate}
+                            </header>
+                            <ul className="space-y-0">
+                              {(dateTransactions as any[]).slice(0, 10).map((transaction, index) => {
+                                const isBatch = transaction.batchId && transaction.totalRecipients && transaction.totalRecipients > 1
+                                const isLast = index === (dateTransactions as any[]).length - 1
+
+                                return (
+                                  <li key={transaction.id} className="flex px-2 group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                    {/* Status Icon */}
+                                    <div className={`w-9 h-9 rounded-full shrink-0 my-2 mr-3 flex items-center justify-center ${
+                                      transaction.status === 'confirmed' ? 'bg-green-500' :
+                                      transaction.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+                                    }`}>
+                                      {transaction.status === 'confirmed' ? (
+                                        <svg className="w-5 h-5 fill-current text-white" viewBox="0 0 20 20">
+                                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                                        </svg>
+                                      ) : transaction.status === 'pending' ? (
+                                        <svg className="w-5 h-5 fill-current text-white" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+                                        </svg>
+                                      ) : (
+                                        <svg className="w-5 h-5 fill-current text-white" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                                        </svg>
+                                      )}
+                                    </div>
+
+                                    {/* Transaction Details */}
+                                    <div className={`grow flex items-center text-sm py-2 ${
+                                      !isLast ? 'border-b border-gray-100 dark:border-gray-700/60' : ''
+                                    }`}>
+                                      <div className="grow flex justify-between">
+                                        <div className="self-center min-w-0 flex-1">
+                                          <div className="flex items-center">
+                                            <a className="font-medium text-gray-800 hover:text-gray-900 dark:text-gray-100 dark:hover:text-white truncate" href="#0">
+                                              {transaction.recipientName || 'Payment'}
+                                            </a>
+                                            {isBatch && (
+                                              <span className="ml-2 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded font-medium">
+                                                {transaction.totalRecipients}x
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
+                                            {transaction.recipientAddress.slice(0, 8)}...{transaction.recipientAddress.slice(-6)}
+                                          </div>
+                                          {/* Explorer link - only visible on group hover */}
+                                          {transaction.txHash && transaction.txHash !== 'failed' && (
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <a
+                                                href={`https://mintscan.io/noble/txs/${transaction.txHash}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center mt-1"
+                                              >
+                                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                </svg>
+                                                Explorer
+                                              </a>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="shrink-0 self-start ml-2 text-right">
+                                          <span className={`font-medium ${
+                                            transaction.status === 'confirmed' ? 'text-green-600' :
+                                            transaction.status === 'failed' ? 'text-red-600 line-through' :
+                                            'text-gray-800 dark:text-gray-100'
+                                          }`}>
+                                            {transaction.status === 'confirmed' ? '+' : transaction.status === 'failed' ? '-' : ''}${parseFloat(transaction.amount).toFixed(2)}
+                                          </span>
+                                          {isBatch && (
+                                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                              ${parseFloat(transaction.totalAmount || '0').toFixed(2)} total
+                                            </div>
+                                          )}
+                                          <div className="text-xs text-gray-400 dark:text-gray-500">
+                                            {new Date(transaction.createdAt).toLocaleTimeString(undefined, { 
+                                              hour: '2-digit',
+                                              minute: '2-digit'
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </li>
+                                )
+                              })}
+                            </ul>
+                          </div>
+                        )
+                      })
+                    })()}
+
+                    {transactions.length > 15 && (
+                      <div className="text-center pt-3 border-t border-gray-100 dark:border-gray-700/60">
+                        <button className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                          View All ({transactions.length})
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Quick Stats Footer */}
+                {transactions.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/60">
+                    <div className="grid grid-cols-2 gap-3 text-center">
+                      <div>
+                        <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                          {transactions.filter(tx => tx.status === 'confirmed').length}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Completed
+                        </div>
+                        {transactions.filter(tx => tx.status === 'failed').length > 0 && (
+                          <div className="text-xs text-red-500 dark:text-red-400">
+                            {transactions.filter(tx => tx.status === 'failed').length} failed
                           </div>
                         )}
                       </div>
-                    )
-                  })}
-                  
-                  {transactions.length > 15 && (
-                    <div className="text-center pt-2 border-t border-gray-200 dark:border-gray-600">
-                      <button className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
-                        View All ({transactions.length})
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Quick Stats */}
-              {transactions.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                  <div className="grid grid-cols-2 gap-3 text-center">
-                    <div>
-                      <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                        {transactions.filter(tx => tx.status === 'confirmed').length}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Completed
-                      </div>
-                      {transactions.filter(tx => tx.status === 'failed').length > 0 && (
-                        <div className="text-xs text-red-500 dark:text-red-400">
-                          {transactions.filter(tx => tx.status === 'failed').length} failed
+                      <div>
+                        <div className="text-lg font-bold text-green-600">
+                          ${transactions
+                            .filter(tx => tx.status === 'confirmed')
+                            .reduce((sum, tx) => sum + parseFloat(tx.amount || '0'), 0)
+                            .toFixed(0)}
                         </div>
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-green-600">
-                        ${transactions
-                          .filter(tx => tx.status === 'confirmed')
-                          .reduce((sum, tx) => sum + parseFloat(tx.amount || '0'), 0)
-                          .toFixed(0)}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Successfully Sent
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Successfully Sent
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>

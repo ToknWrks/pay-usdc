@@ -29,13 +29,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { ownerAddress, name, description, recipients } = body
+    const { ownerAddress, name, description, listType = 'fixed', recipients } = body
 
     if (!ownerAddress || !name || !recipients || !Array.isArray(recipients)) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Only calculate total recipients (no amounts)
+    // Calculate totals
     const totalRecipients = recipients.length
 
     // Create the list
@@ -43,17 +43,19 @@ export async function POST(request: NextRequest) {
       ownerAddress,
       name,
       description,
+      listType,
       totalRecipients,
     }).returning()
 
     const listId = newList[0].id
 
-    // Add recipients to the list (no amount field)
+    // Add recipients to the list
     if (recipients.length > 0) {
       const recipientData = recipients.map((recipient: any, index: number) => ({
         listId,
         name: recipient.name || null,
         address: recipient.address,
+        percentage: listType === 'percentage' ? (recipient.percentage || null) : null,
         order: index,
       }))
 

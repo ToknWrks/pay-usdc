@@ -10,6 +10,7 @@ interface EditableRecipient {
   id: string
   name: string
   address: string
+  percentage?: string // For fund split lists
   isValid: boolean
 }
 
@@ -22,6 +23,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+  const [listType, setListType] = useState<'fixed' | 'percentage'>('fixed') // Define listType with default value
   const [importError, setImportError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -40,20 +42,24 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
   }, [nobleAddress, listId])
 
   const loadListData = async () => {
+    if (!listId) return
+    
     try {
       const { list, recipients: savedRecipients } = await loadList(listId)
       setListName(list.name)
       setListDescription(list.description || '')
+      setListType(list.listType || 'fixed') // Load the list type from database
       
       const convertedRecipients = savedRecipients.map((r: any, index: number) => ({
         id: `recipient-${r.id}-${index}`,
         name: r.name || '',
         address: r.address,
+        percentage: r.percentage || '', // Load percentage from database
         isValid: validateRecipient(r.address)
       }))
       
       setRecipients(convertedRecipients.length > 0 ? convertedRecipients : [
-        { id: '1', name: '', address: '', isValid: false }
+        { id: '1', name: '', address: '', percentage: listType === 'percentage' ? '' : undefined, isValid: false }
       ])
     } catch (error) {
       console.error('Failed to load list:', error)
@@ -76,6 +82,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
       id: Date.now().toString(),
       name: '',
       address: '',
+      percentage: listType === 'percentage' ? '' : undefined,
       isValid: false
     }
     setRecipients([...recipients, newRecipient])
@@ -89,7 +96,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
   }
 
   // Update recipient
-  const updateRecipient = (id: string, field: 'name' | 'address', value: string) => {
+  const updateRecipient = (id: string, field: 'name' | 'address' | 'percentage', value: string) => {
     setRecipients(recipients.map(recipient => {
       if (recipient.id === id) {
         const updated = { ...recipient, [field]: value }
@@ -106,15 +113,21 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
     if (lines.length < 2) {
       throw new Error('CSV must have at least a header row and one data row')
     }
-
+  
     const header = lines[0].toLowerCase().split(',').map(h => h.trim())
     const nameIndex = header.findIndex(h => h.includes('name'))
     const addressIndex = header.findIndex(h => h.includes('address') || h.includes('wallet'))
-
+    const percentageIndex = header.findIndex(h => h.includes('percentage') || h.includes('percent') || h.includes('%'))
+  
     if (addressIndex === -1) {
       throw new Error('CSV must contain Address column')
     }
-
+  
+    // For percentage lists, require percentage column
+    if (listType === 'percentage' && percentageIndex === -1) {
+      throw new Error('CSV must contain Percentage column for fund split lists')
+    }
+  
     const parsedRecipients: EditableRecipient[] = []
     
     for (let i = 1; i < lines.length; i++) {
@@ -123,20 +136,22 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
       if (cells.length < addressIndex + 1) {
         continue
       }
-
+  
       const name = nameIndex >= 0 ? cells[nameIndex] || '' : ''
       const address = cells[addressIndex] || ''
-
+      const percentage = listType === 'percentage' && percentageIndex >= 0 ? cells[percentageIndex] || '' : undefined
+  
       if (address) {
         parsedRecipients.push({
           id: `imported-${i}-${Date.now()}`,
           name,
           address,
+          percentage,
           isValid: validateRecipient(address)
         })
       }
     }
-
+  
     return parsedRecipients
   }
 
@@ -187,18 +202,23 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
 
   // Download CSV template
   const downloadTemplate = () => {
-    const template = `Name,Address
+    const template = listType === 'percentage' 
+    ? `Name,Address,Percentage
+"John Doe","noble1abc123def456ghi789jkl012mno345pqr678stu","50.00"
+"Jane Smith","noble1xyz789abc012def345ghi678jkl901mno234pqr","30.00"
+"Team Payment","noble1qwe456rty789uio012asd345fgh678jkl901zxc","20.00"`
+    : `Name,Address
 "John Doe","noble1abc123def456ghi789jkl012mno345pqr678stu"
 "Jane Smith","noble1xyz789abc012def345ghi678jkl901mno234pqr"
 "Team Payment","noble1qwe456rty789uio012asd345fgh678jkl901zxc"`
-    
-    const blob = new Blob([template], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'recipient-list-template.csv'
-    link.click()
-    URL.revokeObjectURL(url)
+  
+  const blob = new Blob([template], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `recipient-list-template-${listType}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
   }
 
   // Export current list
@@ -252,27 +272,56 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [hasUnsavedChanges])
 
+  const getTotalPercentage = () => {
+    return recipients.reduce((sum, recipient) => {
+      const percentage = parseFloat(recipient.percentage || '0');
+      return sum + (isNaN(percentage) ? 0 : percentage);
+    }, 0);
+  };
+
   const handleSaveList = async () => {
+    if (!listId) {
+      alert('❌ List ID is missing')
+      return
+    }
+  
     if (!listName.trim()) {
       alert('Please enter a list name')
       return
     }
-
-    const validRecipients = recipients.filter(r => r.address) // Only need address
+  
+    // Validate based on list type
+    let validRecipients
+    if (listType === 'percentage') {
+      // For fund split: need address and percentage
+      validRecipients = recipients.filter(r => r.address && r.percentage)
+      
+      // Validate percentages add up to 100%
+      const totalPercentage = getTotalPercentage()
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        alert(`Percentages must add up to 100%. Current total: ${totalPercentage.toFixed(2)}%`)
+        return
+      }
+    } else {
+      // For fixed amount: need address (amount will be set in pay-multi)
+      validRecipients = recipients.filter(r => r.address)
+    }
     
     if (validRecipients.length === 0) {
-      const confirmed = confirm('This list has no recipients with addresses. Save anyway?')
+      const confirmed = confirm('This list has no valid recipients. Save anyway?')
       if (!confirmed) return
     }
-
+  
     setIsSaving(true)
     try {
       await updateList(listId, {
         name: listName.trim(),
         description: listDescription.trim() || undefined,
+        listType: listType,
         recipients: validRecipients.map(r => ({
           name: r.name || undefined,
-          address: r.address
+          address: r.address,
+          percentage: listType === 'percentage' ? r.percentage : undefined
         }))
       })
       
@@ -350,6 +399,79 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
         </div>
       </div>
 
+      {/* List Type Selection - Add this section after List Info */}
+      <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          List Configuration
+        </h2>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            List Type *
+          </label>
+          <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <button
+              onClick={() => setListType('fixed')}
+              className={`flex-1 px-4 py-3 text-sm rounded-md transition-colors ${
+                listType === 'fixed'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+              }`}
+            >
+              <div className="text-center">
+                <div className="font-medium">Fixed Amounts</div>
+                <div className="text-xs opacity-75">Each person gets the same amount</div>
+              </div>
+            </button>
+            <button
+              onClick={() => setListType('percentage')}
+              className={`flex-1 px-4 py-3 text-sm rounded-md transition-colors ${
+                listType === 'percentage'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+              }`}
+            >
+              <div className="text-center">
+                <div className="font-medium">Fund Split</div>
+                <div className="text-xs opacity-75">Split total by percentages</div>
+              </div>
+            </button>
+          </div>
+        </div>
+        
+        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            {listType === 'fixed' ? (
+              <>
+                <strong>Fixed Amounts:</strong> You'll set a specific USDC amount per recipient when sending. All recipients get the same amount.
+              </>
+            ) : (
+              <>
+                <strong>Fund Split:</strong> Recipients receive a percentage of the total amount sent. Percentages must add up to 100%.
+              </>
+            )}
+          </p>
+        </div>
+
+        {/* Percentage validation for fund lists */}
+        {listType === 'percentage' && recipients.length > 0 && (
+          <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Total allocation: {getTotalPercentage().toFixed(2)}%
+              </span>
+              <span className={`text-sm font-medium ${
+                Math.abs(getTotalPercentage() - 100) < 0.01 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-red-600 dark:text-red-400'
+              }`}>
+                {Math.abs(getTotalPercentage() - 100) < 0.01 ? '✓ Balanced' : '⚠ Must equal 100%'}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Import/Export Actions */}
       <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -381,7 +503,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
                 </svg>
               ) : (
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m0 0l3-3m-3 3V10" />
                 </svg>
               )}
               {isImporting ? 'Importing...' : 'Import CSV'}
@@ -431,13 +553,13 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
 
         <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
           <p className="text-sm text-blue-700 dark:text-blue-300">
-            <strong>CSV Format:</strong> Your file should have columns for Name and Address.<br/>
-            Example: <code>Name,Address</code> followed by recipient data. You'll set the payment amount when sending.
+            <strong>CSV Format:</strong> Your file should have columns for Name, Address, and Amount.<br/>
+            Example: <code>Name,Address,Amount</code> followed by recipient data.
           </p>
         </div>
       </div>
 
-      {/* Recipients */}
+      {/* Recipients - Ultra Compact Layout */}
       <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -453,44 +575,35 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
             Add Recipient
           </button>
         </div>
-
-        {/* Recipients - Compact Layout */}
-        <div className="space-y-3">
+      
+        {/* Header Row */}
+        <div className="hidden md:grid grid-cols-12 gap-3 mb-2 px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400">
+          <div className="col-span-1">#</div>
+          <div className="col-span-3">Name (Optional)</div>
+          <div className={listType === 'percentage' ? 'col-span-5' : 'col-span-7'}>Noble Address</div>
+          {listType === 'percentage' && <div className="col-span-2">Share %</div>}
+          <div className="col-span-1">Actions</div>
+        </div>
+      
+        <div className="space-y-2">
           {recipients.map((recipient, index) => (
-            <div key={recipient.id} className={`p-3 border rounded-lg ${
+            <div key={recipient.id} className={`p-3 border rounded-lg transition-colors ${
               recipient.isValid ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/10' :
               recipient.address ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10' :
               'border-gray-200 dark:border-gray-600'
             }`}>
-              {/* Header with Recipient # and Remove Button */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Recipient {index + 1}
-                  {recipient.name && (
-                    <span className="ml-2 text-blue-600 dark:text-blue-400 font-normal">
-                      • {recipient.name}
-                    </span>
-                  )}
-                </span>
-                {recipients.length > 1 && (
-                  <button
-                    onClick={() => removeRecipient(recipient.id)}
-                    className="text-red-500 hover:text-red-700 transition-colors p-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
               
-              {/* Compact Form Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                {/* Name Field - 2 columns on desktop */}
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                    Name (Optional)
-                  </label>
+              {/* Desktop Layout - Single Row */}
+              <div className="hidden md:grid grid-cols-12 gap-3 items-center">
+                {/* Recipient Number */}
+                <div className="col-span-1">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {index + 1}
+                  </span>
+                </div>
+                
+                {/* Name Field */}
+                <div className="col-span-3">
                   <input
                     type="text"
                     value={recipient.name}
@@ -500,11 +613,8 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
                   />
                 </div>
                 
-                {/* Address Field - 3 columns on desktop */}
-                <div className="md:col-span-3">
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                    Noble Address
-                  </label>
+                {/* Address Field */}
+                <div className={listType === 'percentage' ? 'col-span-5' : 'col-span-7'}>
                   <input
                     type="text"
                     value={recipient.address}
@@ -513,29 +623,149 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
                     className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
                 </div>
-              </div>
-              
-              {/* Status Indicator */}
-              {recipient.address && (
-                <div className="mt-2 flex items-center">
-                  <div className={`w-2 h-2 rounded-full mr-2 ${
-                    recipient.isValid ? 'bg-green-500' : 'bg-red-500'
-                  }`}></div>
-                  <span className={`text-xs ${
-                    recipient.isValid ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
-                  }`}>
-                    {recipient.isValid ? 'Valid address' : 'Invalid Noble address'}
-                  </span>
+                
+                {/* Percentage Field (only for fund split) */}
+                {listType === 'percentage' && (
+                  <div className="col-span-2">
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        value={recipient.percentage || ''}
+                        onChange={(e) => updateRecipient(recipient.id, 'percentage', e.target.value)}
+                        placeholder="25.00"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-8"
+                      />
+                      <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">%</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Remove Button */}
+                <div className="col-span-1 flex justify-center">
+                  {recipients.length > 1 && (
+                    <button
+                      onClick={() => removeRecipient(recipient.id)}
+                      className="text-red-500 hover:text-red-700 transition-colors p-1"
+                      title="Remove recipient"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
+      
+              {/* Mobile Layout - Stacked */}
+              <div className="md:hidden space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Recipient {index + 1}
+                    {recipient.name && (
+                      <span className="ml-2 text-blue-600 dark:text-blue-400 font-normal">
+                        • {recipient.name}
+                      </span>
+                    )}
+                    {listType === 'percentage' && recipient.percentage && (
+                      <span className="ml-2 text-green-600 dark:text-green-400 font-normal">
+                        ({recipient.percentage}%)
+                      </span>
+                    )}
+                  </span>
+                  {recipients.length > 1 && (
+                    <button
+                      onClick={() => removeRecipient(recipient.id)}
+                      className="text-red-500 hover:text-red-700 transition-colors p-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 gap-2">
+                  <input
+                    type="text"
+                    value={recipient.name}
+                    onChange={(e) => updateRecipient(recipient.id, 'name', e.target.value)}
+                    placeholder="Name (optional)"
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    value={recipient.address}
+                    onChange={(e) => updateRecipient(recipient.id, 'address', e.target.value)}
+                    placeholder="noble1..."
+                    className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                  {listType === 'percentage' && (
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        value={recipient.percentage || ''}
+                        onChange={(e) => updateRecipient(recipient.id, 'percentage', e.target.value)}
+                        placeholder="25.00"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-8"
+                      />
+                      <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">%</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+      
+            
             </div>
           ))}
         </div>
+      
+        {/* Quick Actions for large lists */}
+        {recipients.length > 5 && (
+          <div className="mt-4 flex justify-between items-center">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {recipients.length} recipients • {validRecipients.length} valid
+            </span>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => {
+                  const newRecipients = Array.from({ length: 5 }, (_, i) => ({
+                    id: `bulk-${Date.now()}-${i}`,
+                    name: '',
+                    address: '',
+                    percentage: listType === 'percentage' ? '' : undefined,
+                    isValid: false
+                  }))
+                  setRecipients([...recipients, ...newRecipients])
+                }}
+                className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400"
+              >
+                + Add 5 more
+              </button>
+              <button
+                onClick={() => {
+                  const confirmed = confirm('Remove all empty recipients?')
+                  if (confirmed) {
+                    setRecipients(recipients.filter(r => r.address || r.name))
+                  }
+                }}
+                className="text-sm text-red-500 hover:text-red-700 dark:text-red-400"
+              >
+                Remove empty
+              </button>
+            </div>
+            </div>
+          )}
       </div>
 
       {/* Summary & Actions */}
       <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="text-center">
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {recipients.length}
@@ -553,8 +783,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
             </div>
           </div>
         </div>
-        
-        {/* Keep the action buttons the same */}
+
         <div className="flex flex-col md:flex-row gap-3">
           <Link
             href={`/dashboard/pay?loadList=${listId}`}

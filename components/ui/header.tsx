@@ -64,8 +64,10 @@ export default function Header({
               </button>
               <SearchModal isOpen={searchModalOpen} setIsOpen={setSearchModalOpen} /> */}
             </div>
+            {/* 
             <Notifications align="right" />
             <DropdownHelp align="right" />
+            */}
             <ThemeToggle />
             {/*  Divider */}
             <hr className="w-px h-6 bg-gray-200 dark:bg-gray-700/60 border-none" />

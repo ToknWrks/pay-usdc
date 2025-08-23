@@ -7,8 +7,8 @@ interface RecipientList {
   ownerAddress: string
   name: string
   description?: string
+  listType: 'fixed' | 'percentage' // Add this
   totalRecipients: number
-  totalAmount: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -19,7 +19,7 @@ interface SavedRecipient {
   listId: number
   name?: string
   address: string
-  amount: string
+  percentage?: string // Add this
   order: number
   createdAt: string
 }
@@ -57,9 +57,11 @@ export function useRecipientLists(ownerAddress?: string) {
   const createList = async (listData: {
     name: string
     description?: string
+    listType?: 'fixed' | 'percentage'
     recipients: Array<{
       name?: string
       address: string
+      percentage?: string
     }>
   }) => {
     if (!ownerAddress) throw new Error('No owner address')
@@ -70,7 +72,8 @@ export function useRecipientLists(ownerAddress?: string) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ownerAddress,
-          ...listData
+          ...listData,
+          listType: listData.listType || 'fixed' // Default to fixed
         })
       })
 
@@ -109,9 +112,11 @@ export function useRecipientLists(ownerAddress?: string) {
   const updateList = async (listId: number, listData: {
     name: string
     description?: string
+    listType?: 'fixed' | 'percentage'
     recipients: Array<{
       name?: string
       address: string
+      percentage?: string
     }>
   }) => {
     try {

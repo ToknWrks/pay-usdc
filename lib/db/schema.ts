@@ -9,36 +9,38 @@ export const users = pgTable('users', {
   lastLoginAt: timestamp('last_login_at'),
 })
 
-// Updated: Recipient Lists table - Remove totalAmount field since amounts are dynamic
+// Updated: Recipient Lists table with listType
 export const recipientLists = pgTable('recipient_lists', {
   id: serial('id').primaryKey(),
   ownerAddress: text('owner_address').notNull(),
   name: text('name').notNull(),
   description: text('description'),
+  listType: text('list_type').notNull().default('fixed'), // 'fixed' or 'percentage'
   totalRecipients: integer('total_recipients').default(0),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })
 
-// Updated: Recipients table (for saved lists) - Remove amount field
+// Updated: Recipients table with percentage field
 export const savedRecipients = pgTable('saved_recipients', {
   id: serial('id').primaryKey(),
   listId: integer('list_id').references(() => recipientLists.id).notNull(),
   name: text('name'),
   address: text('address').notNull(),
+  percentage: decimal('percentage', { precision: 5, scale: 2 }), // For fund percentage (0-100.00)
   order: integer('order').default(0),
   createdAt: timestamp('created_at').defaultNow(),
 })
 
-// Updated: Batch transactions table
+// Existing batch and transaction tables
 export const batches = pgTable('batches', {
   id: serial('id').primaryKey(),
   senderAddress: text('sender_address').notNull(),
-  txHash: text('tx_hash').notNull().unique(), // Single blockchain transaction hash
+  txHash: text('tx_hash').notNull().unique(),
   totalAmount: decimal('total_amount', { precision: 18, scale: 6 }).notNull(),
   totalRecipients: integer('total_recipients').notNull(),
-  status: text('status').notNull().default('pending'), // 'pending', 'confirmed', 'failed'
+  status: text('status').notNull().default('pending'),
   blockHeight: text('block_height'),
   gasUsed: text('gas_used'),
   gasPrice: text('gas_price'),
@@ -47,23 +49,14 @@ export const batches = pgTable('batches', {
   confirmedAt: timestamp('confirmed_at'),
 })
 
-// Updated: Individual transactions table (references batch)
 export const transactions = pgTable('transactions', {
   id: serial('id').primaryKey(),
-  
-  // Batch reference
   batchId: integer('batch_id').references(() => batches.id),
-  
-  // Individual transaction details
   senderAddress: text('sender_address').notNull(),
-  recipientName: text('recipient_name'), // Optional name for recipient
+  recipientName: text('recipient_name'),
   recipientAddress: text('recipient_address').notNull(),
   amount: decimal('amount', { precision: 18, scale: 6 }).notNull(),
-  
-  // Individual status (inherits from batch, but can be overridden for failed individual sends)
   status: text('status').notNull().default('pending'),
-  
-  // Timestamps
   createdAt: timestamp('created_at').defaultNow(),
 })
 

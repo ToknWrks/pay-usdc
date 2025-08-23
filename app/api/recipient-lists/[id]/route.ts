@@ -46,13 +46,13 @@ export async function PUT(
   try {
     const listId = parseInt(params.id)
     const body = await request.json()
-    const { name, description, recipients } = body
+    const { name, description, listType = 'fixed', recipients } = body
 
     if (!name || !recipients || !Array.isArray(recipients)) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Only calculate total recipients
+    // Calculate totals
     const totalRecipients = recipients.length
 
     // Update the list info
@@ -61,6 +61,7 @@ export async function PUT(
       .set({
         name,
         description: description || null,
+        listType,
         totalRecipients,
         updatedAt: new Date(),
       })
@@ -74,12 +75,13 @@ export async function PUT(
     // Delete existing recipients
     await db.delete(savedRecipients).where(eq(savedRecipients.listId, listId))
 
-    // Add new recipients (no amount field)
+    // Add new recipients
     if (recipients.length > 0) {
       const recipientData = recipients.map((recipient: any, index: number) => ({
         listId,
         name: recipient.name || null,
         address: recipient.address,
+        percentage: listType === 'percentage' ? (recipient.percentage || null) : null,
         order: index,
       }))
 
