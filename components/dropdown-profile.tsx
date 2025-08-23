@@ -120,12 +120,10 @@ export default function DropdownProfile({ align }: {
     if (noble.isConnected) return 'Noble Wallet'
     if (osmosis.isConnected) return 'Osmosis Wallet'
     if (cosmoshub.isConnected) return 'Cosmos Hub'
-    if (juno.isConnected) return 'Juno Wallet'
-    if (stargaze.isConnected) return 'Stargaze Wallet'
-    return 'Acme Inc.'
-  })() : 'Acme Inc.'
+    return 'Pay USDC'
+  })() : 'Pay USDC'
 
-  const walletStatus = isAnyWalletConnected ? 'Wallet Connected' : 'Acme Inc.'
+  const walletStatus = isAnyWalletConnected ? 'Wallet Connected' : 'Pay USDC'
   const userType = isAnyWalletConnected ? 'Web3 User' : 'Administrator'
 
   // Get network name
