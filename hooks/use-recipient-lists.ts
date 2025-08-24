@@ -7,7 +7,7 @@ interface RecipientList {
   ownerAddress: string
   name: string
   description?: string
-  listType: 'fixed' | 'percentage' // Add this
+  listType: 'fixed' | 'percentage'
   totalRecipients: number
   isActive: boolean
   createdAt: string
