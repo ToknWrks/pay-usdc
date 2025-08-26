@@ -7,6 +7,8 @@ interface Contact {
   ownerAddress: string
   name: string
   address: string
+  email?: string // Add email
+  phone?: string // Add phone
   description?: string
   tags?: string
   isActive: boolean
@@ -49,6 +51,8 @@ export function useContacts(ownerAddress?: string) {
   const createContact = async (contactData: {
     name: string
     address: string
+    email?: string
+    phone?: string
     description?: string
     tags?: string
   }) => {
@@ -81,6 +85,8 @@ export function useContacts(ownerAddress?: string) {
   const updateContact = async (contactId: number, contactData: {
     name: string
     address: string
+    email?: string
+    phone?: string
     description?: string
     tags?: string
   }) => {

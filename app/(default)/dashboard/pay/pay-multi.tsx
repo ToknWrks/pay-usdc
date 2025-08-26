@@ -138,20 +138,31 @@ export default function PayMultiPage() {
   }
 
   // Calculate totals
-  const validRecipients = recipients.filter(r => r.isValid)
-  const totalAmount = loadedListType === 'percentage' 
-    ? parseFloat(paymentAmount || '0') // Total fund amount
-    : validRecipients.length * parseFloat(paymentAmount || '0') // Per recipient × count
-  const canSend = validRecipients.length > 0 && nobleConnected && totalAmount > 0 && parseFloat(paymentAmount || '0') > 0
-
+  
   const getTotalPercentage = () => {
     return recipients.reduce((sum, recipient) => sum + (parseFloat(recipient.percentage as string) || 0), 0)
   }
 
+  const validRecipients = recipients.filter(r => r.isValid)
+
+  const totalAmount = loadedListType === 'percentage' 
+    ? parseFloat(paymentAmount || '0') // Total fund amount for percentage lists
+    : validRecipients.length * parseFloat(paymentAmount || '0') // Per recipient × count for fixed lists
+
+  const canSend = validRecipients.length > 0 && nobleConnected && totalAmount > 0 && parseFloat(paymentAmount || '0') > 0
+
+  // For percentage lists, also check that percentages are valid
+  const percentageValid = loadedListType === 'percentage' 
+    ? Math.abs(getTotalPercentage() - 100) < 0.01 
+    : true
+
+  // Update canSend to include percentage validation
+  const finalCanSend = canSend && percentageValid
+
   // Handle send with real Noble transactions
   const handleSend = async () => {
-    if (!canSend || !nobleAddress) return
-
+    if (!finalCanSend || !nobleAddress) return
+  
     setIsSending(true)
     setSendingProgress('Preparing batch transaction...')
     
@@ -162,10 +173,47 @@ export default function PayMultiPage() {
       if (!signingClient) {
         throw new Error('Failed to get signing client. Please reconnect your wallet.')
       }
-
+  
       setSendingProgress(`Sending to ${validRecipients.length} recipients...`)
       
-      // This would be for a true batch send (all in one tx)
+      // Calculate individual amounts based on list type
+      let recipientAmounts: { address: string; amount: string; name?: string }[] = []
+      
+      if (loadedListType === 'percentage') {
+        // For percentage lists, calculate each recipient's share
+        const totalFund = parseFloat(paymentAmount) * 1_000_000 // Convert to uusdc
+        
+        recipientAmounts = validRecipients.map(recipient => {
+          const percentage = parseFloat(recipient.percentage || '0') / 100
+          const individualAmount = Math.floor(totalFund * percentage)
+          return {
+            address: recipient.address,
+            amount: individualAmount.toString(),
+            name: recipient.name
+          }
+        })
+        
+        // Validate percentage totals before sending
+        const totalPercentage = getTotalPercentage()
+        if (Math.abs(totalPercentage - 100) > 0.01) {
+          throw new Error(`Percentages must add up to 100%. Current total: ${totalPercentage.toFixed(2)}%`)
+        }
+        
+      } else {
+        // For fixed amount lists, everyone gets the same amount
+        const individualAmount = Math.floor(parseFloat(paymentAmount) * 1_000_000) // Convert to uusdc
+        
+        recipientAmounts = validRecipients.map(recipient => ({
+          address: recipient.address,
+          amount: individualAmount.toString(),
+          name: recipient.name
+        }))
+      }
+  
+      // Calculate total amount for the transaction
+      const totalTransactionAmount = recipientAmounts.reduce((sum, r) => sum + parseInt(r.amount), 0)
+      
+      // Build the multi-send message
       const multiSendMsg = {
         typeUrl: "/cosmos.bank.v1beta1.MsgMultiSend",
         value: {
@@ -173,19 +221,19 @@ export default function PayMultiPage() {
             address: nobleAddress,
             coins: [{
               denom: 'uusdc',
-              amount: Math.floor(totalAmount * 1_000_000).toString()
+              amount: totalTransactionAmount.toString()
             }]
           }],
-          outputs: validRecipients.map(recipient => ({
+          outputs: recipientAmounts.map(recipient => ({
             address: recipient.address,
             coins: [{
               denom: 'uusdc',
-              amount: Math.floor(parseFloat(paymentAmount) * 1_000_000).toString()
+              amount: recipient.amount
             }]
           }))
         }
       }
-
+  
       // Send the multi-send transaction
       const result = await signingClient.signAndBroadcast(
         nobleAddress,
@@ -195,35 +243,42 @@ export default function PayMultiPage() {
           gas: (200000 * validRecipients.length).toString()
         }
       )
-
+  
       console.log(`Transaction sent:`, result.transactionHash)
       
       setSendingProgress('Recording batch transaction...')
-
+  
       // Record the batch transaction in database with all recipients
       await createBatchTransaction({
         senderAddress: nobleAddress,
-        recipients: validRecipients.map(r => ({
+        recipients: recipientAmounts.map(r => ({
           name: r.name || undefined,
           address: r.address,
-          amount: paymentAmount,
+          amount: (parseInt(r.amount) / 1_000_000).toString(), // Convert back to USDC for database
         })),
         txHash: result.transactionHash,
         totalAmount: totalAmount,
-        memo: `Batch payment to ${validRecipients.length} recipients`,
+        memo: loadedListType === 'percentage' 
+          ? `Fund split payment to ${validRecipients.length} recipients`
+          : `Batch payment to ${validRecipients.length} recipients`,
         status: 'confirmed'
       })
-
+  
       // Show success message
-      alert(`✅ Successfully sent USDC to all ${validRecipients.length} recipients!`)
+      if (loadedListType === 'percentage') {
+        alert(`✅ Successfully split $${totalAmount.toFixed(2)} USDC among ${validRecipients.length} recipients!`)
+      } else {
+        alert(`✅ Successfully sent $${parseFloat(paymentAmount).toFixed(2)} USDC to each of ${validRecipients.length} recipients!`)
+      }
       
       // Reset form
       setRecipients([{ id: '1', name: '', address: '', isValid: false }])
       setPaymentAmount('')
-
+      setLoadedListType('fixed')
+  
       // Refresh balance
       nobleBalance.refetch()
-
+  
     } catch (error) {
       console.error('Error sending batch USDC:', error)
       alert(`Failed to send USDC: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -446,9 +501,9 @@ export default function PayMultiPage() {
               <div className="mt-6">
                 <button
                   onClick={handleSend}
-                  disabled={!canSend || isSending || hasInsufficientBalance}
+                  disabled={!finalCanSend || isSending || hasInsufficientBalance}
                   className={`w-full py-4 px-6 rounded-lg font-medium text-lg transition-all ${
-                    canSend && !isSending && !hasInsufficientBalance
+                    finalCanSend && !isSending && !hasInsufficientBalance
                       ? 'bg-blue-500 hover:bg-blue-600 text-white transform hover:scale-[1.02]'
                       : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                   }`}
@@ -461,24 +516,22 @@ export default function PayMultiPage() {
                       </svg>
                       {sendingProgress || 'Sending USDC...'}
                     </div>
-                  ) : validRecipients.length > 0 && paymentAmount ? (
-                    `Send ${totalAmount.toFixed(6)} USDC to ${validRecipients.length} Recipients`
-                  ) : !nobleConnected ? (
-                    'Connect Noble Wallet to Continue'
-                  ) : validRecipients.length === 0 ? (
-                    'Add Valid Recipients to Continue'
-                  ) : !paymentAmount ? (
-                    'Enter Payment Amount to Continue'
+                  ) : !finalCanSend ? (
+                    loadedListType === 'percentage' && Math.abs(getTotalPercentage() - 100) > 0.01
+                      ? `Percentages must equal 100% (currently ${getTotalPercentage().toFixed(1)}%)`
+                      : !nobleConnected 
+                        ? 'Connect Noble Wallet to Continue'
+                        : validRecipients.length === 0 
+                          ? 'Add Valid Recipients to Continue'
+                          : !paymentAmount 
+                            ? 'Enter Payment Amount to Continue'
+                            : 'Complete Details to Continue'
+                  ) : loadedListType === 'percentage' ? (
+                    `Split $${totalAmount.toFixed(2)} USDC among ${validRecipients.length} Recipients`
                   ) : (
-                    'Complete Details to Continue'
+                    `Send $${totalAmount.toFixed(2)} USDC to ${validRecipients.length} Recipients`
                   )}
                 </button>
-                
-                {!nobleConnected && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-3">
-                    You need to connect your Noble wallet to send USDC
-                  </p>
-                )}
               </div>
             </div>
 

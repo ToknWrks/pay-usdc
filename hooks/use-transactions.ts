@@ -87,6 +87,12 @@ export function useTransactions(senderAddress?: string) {
     }
   }
 
+  const refreshTransactions = () => {
+    if (senderAddress) {
+      fetchTransactions()
+    }
+  }
+
   useEffect(() => {
     if (senderAddress) {
       fetchTransactions()
@@ -99,5 +105,6 @@ export function useTransactions(senderAddress?: string) {
     error,
     fetchTransactions,
     createBatchTransaction,
+    refreshTransactions, // Add this
   }
 }
