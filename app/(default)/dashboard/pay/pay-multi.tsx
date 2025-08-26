@@ -11,6 +11,7 @@ import { useChain } from '@cosmos-kit/react'
 import Link from 'next/link'
 import { useRecipientLists } from '@/hooks/use-recipient-lists'
 import { useSearchParams } from 'next/navigation'
+import { useContacts } from '@/hooks/use-contacts'
 
 interface Recipient {
   id: string
@@ -38,6 +39,7 @@ export default function PayMultiPage() {
   const [paymentAmount, setPaymentAmount] = useState('')
   const [listType, setListType] = useState<'fixed' | 'percentage'>('fixed')
   const [loadedListType, setLoadedListType] = useState<'fixed' | 'percentage'>('fixed')
+  const [showContactSelector, setShowContactSelector] = useState(false)
 
   // EVM Wallet
   const { isConnected: evmConnected, address: evmAddress, connector } = useAccount()
@@ -66,6 +68,9 @@ export default function PayMultiPage() {
   // Recipient Lists hook
   const { lists, isLoading: listsLoading, createList, loadList } = useRecipientLists(nobleAddress)
 
+  // Contacts hook
+  const { contacts } = useContacts(nobleAddress)
+
   // URL params handling for loading lists
   const searchParams = useSearchParams()
 
@@ -76,10 +81,19 @@ export default function PayMultiPage() {
   // Only load list if explicitly specified in URL
   useEffect(() => {
     const loadListId = searchParams.get('loadList')
+    const contactId = searchParams.get('contact')
+    
     if (loadListId && nobleAddress && hasMounted) {
       handleLoadList(parseInt(loadListId))
     }
-  }, [searchParams, nobleAddress, hasMounted])
+    
+    if (contactId && nobleAddress && hasMounted && contacts.length > 0) {
+      const contact = contacts.find(c => c.id === parseInt(contactId))
+      if (contact) {
+        handleLoadContact(contact)
+      }
+    }
+  }, [searchParams, nobleAddress, hasMounted, contacts])
 
   // Handle cosmos connect
   const handleCosmosConnect = (chainName: string) => {
@@ -268,6 +282,26 @@ export default function PayMultiPage() {
     }
   }
 
+  // Handle contact loading
+  const handleLoadContact = (contact: any) => {
+    // Check if contact is already in recipients
+    const existingRecipient = recipients.find(r => r.address === contact.address)
+    if (existingRecipient) {
+      alert(`${contact.name} is already in your recipient list`)
+      setShowContactSelector(false)
+      return
+    }
+
+    const newRecipient = {
+      id: `contact-${contact.id}-${Date.now()}`,
+      name: contact.name,
+      address: contact.address,
+      isValid: validateRecipient(contact.address)
+    }
+    setRecipients([...recipients, newRecipient])
+    setShowContactSelector(false)
+  }
+
   // Check if user has sufficient balance
   const currentBalance = parseFloat(nobleBalance.native?.formatted || '0')
   const hasInsufficientBalance = totalAmount > currentBalance
@@ -448,25 +482,92 @@ export default function PayMultiPage() {
               </div>
             </div>
 
-            {/* Recipients Form */}
+            {/* Recipients Form - Ultra Compact Layout */}
             <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   Recipients ({recipients.length})
                 </h2>
-                <div className="flex items-center space-x-2">
-                  {/* Load List Dropdown */}
+                <div className="flex items-center space-x-1">
+                  {/* Contact Selector - Icon Only */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowContactSelector(!showContactSelector)}
+                      className="p-2 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors"
+                      title="Add from Contacts"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </button>
+                    
+                    {showContactSelector && (
+                      <div className="absolute top-full left-0 mt-1 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
+                        <div className="p-3 border-b border-gray-200 dark:border-gray-600">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Select a Contact</span>
+                            <Link
+                              href="/dashboard/contacts"
+                              className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400"
+                            >
+                              Manage Contacts
+                            </Link>
+                          </div>
+                        </div>
+                        
+                        {contacts.length === 0 ? (
+                          <div className="p-4">
+                            <div className="text-center">
+                              <svg className="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No contacts found</p>
+                              <Link
+                                href="/dashboard/contacts"
+                                className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400"
+                              >
+                                Create your first contact
+                              </Link>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="py-1">
+                            {contacts.map((contact) => (
+                              <button
+                                key={contact.id}
+                                onClick={() => handleLoadContact(contact)}
+                                className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors"
+                              >
+                                <div className="flex items-center">
+                                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-medium mr-3">
+                                    {contact.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                      {contact.name}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">
+                                      {contact.address.slice(0, 12)}...{contact.address.slice(-8)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Load List Dropdown - Icon Only */}
                   <div className="relative">
                     <button
                       onClick={() => setShowListSelector(!showListSelector)}
-                      className="px-3 py-2 bg-purple-500 text-white hover:bg-purple-600 rounded-lg transition-colors flex items-center text-sm"
+                      className="p-2 bg-gray-500 text-white hover:bg-gray-600 rounded-lg transition-colors"
+                      title="Load Recipient List"
                     >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                      Load List
-                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
                     
@@ -509,7 +610,7 @@ export default function PayMultiPage() {
                                       {list.name}
                                     </div>
                                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      {list.totalRecipients} recipients
+                                      {list.totalRecipients} recipients • {list.listType === 'percentage' ? 'Fund Split' : 'Fixed Amount'}
                                     </div>
                                   </div>
                                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -524,7 +625,7 @@ export default function PayMultiPage() {
                     )}
                   </div>
 
-                  {/* Save as List */}
+                  {/* Save as List - Icon Only */}
                   {validRecipients.length > 0 && (
                     <button
                       onClick={() => {
@@ -535,82 +636,104 @@ export default function PayMultiPage() {
                           handleSaveToList()
                         }
                       }}
-                      className="px-3 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors flex items-center text-sm"
+                      className="p-2 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors"
+                      title="Save as List"
                     >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
-                      Save List
                     </button>
                   )}
                   
+                  {/* Manage Lists Link - Icon Only */}
                   <Link
                     href="/dashboard/lists"
-                    className="px-3 py-2 bg-gray-500 text-white hover:bg-gray-600 rounded-lg transition-colors flex items-center text-sm"
+                    className="p-2 bg-gray-500 text-white hover:bg-gray-600 rounded-lg transition-colors"
+                    title="Manage Lists"
                   >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    Lists
                   </Link>
                   
+                  {/* Add Recipient - Icon Only */}
                   <button
                     onClick={addRecipient}
-                    className="px-4 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors flex items-center"
+                    className="p-2 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors"
+                    title="Add Recipient"
                   >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    Add
                   </button>
                 </div>
               </div>
 
-              {/* Tip about List Management */}
+              {/* Updated Tip with Icon References */}
               <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  💡 <strong>Tip:</strong> Use "Manage Lists" to import CSV files, organize recipients, and download templates.
+                  💡 <strong>Quick Actions:</strong> 
+                  <span className="inline-flex items-center mx-1">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Contacts
+                  </span>
+                  •
+                  <span className="inline-flex items-center mx-1">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    Lists
+                  </span>
+                  •
+                  <span className="inline-flex items-center mx-1">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Save
+                  </span>
+                  •
+                  <span className="inline-flex items-center mx-1">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Add
+                  </span>
                 </p>
               </div>
 
-              {/* Recipients List with Scrolling */}
+              {/* Rest of the recipients form... */}
+              {/* Header Row - Desktop Only */}
+              <div className="hidden md:grid grid-cols-12 gap-3 mb-2 px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400">
+                <div className="col-span-1">#</div>
+                <div className="col-span-3">Name</div>
+                <div className="col-span-7">Noble Address</div>
+                <div className="col-span-1">Actions</div>
+              </div>
+
+              {/* Recipients List */}
               <div className="max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg">
-                <div className="space-y-3 p-4">
+                <div className="space-y-1 p-2">
                   {recipients.map((recipient, index) => (
-                    <div key={recipient.id} className={`p-3 border rounded-lg ${
+                    <div key={recipient.id} className={`p-3 border rounded-lg transition-colors ${
                       recipient.isValid ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/10' :
                       recipient.address ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10' :
                       'border-gray-200 dark:border-gray-600'
                     }`}>
-                      {/* Header with Recipient # and Remove Button */}
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Recipient {index + 1}
-                          {recipient.name && (
-                            <span className="ml-2 text-blue-600 dark:text-blue-400 font-normal">
-                              • {recipient.name}
-                            </span>
-                          )}
-                        </span>
-                        {recipients.length > 1 && (
-                          <button
-                            onClick={() => removeRecipient(recipient.id)}
-                            className="text-red-500 hover:text-red-700 transition-colors p-1"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
                       
-                      {/* Recipients with Conditional Percentage Field */}
-                      <div className="grid grid-cols-1 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            Name (Optional)
-                          </label>
+                      {/* Desktop Layout - Single Row */}
+                      <div className="hidden md:grid grid-cols-12 gap-3 items-center">
+                        {/* Recipient Number */}
+                        <div className="col-span-1">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {index + 1}
+                          </span>
+                        </div>
+                        
+                        {/* Name Field */}
+                        <div className="col-span-3">
                           <input
                             type="text"
                             value={recipient.name}
@@ -620,57 +743,73 @@ export default function PayMultiPage() {
                           />
                         </div>
                         
-                        <div className={`grid ${listType === 'percentage' ? 'grid-cols-3' : 'grid-cols-1'} gap-3`}>
-                          <div className={listType === 'percentage' ? 'col-span-2' : ''}>
-                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                              Noble Address
-                            </label>
-                            <input
-                              type="text"
-                              value={recipient.address}
-                              onChange={(e) => updateRecipient(recipient.id, 'address', e.target.value)}
-                              placeholder="noble1..."
-                              className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            />
-                          </div>
-                          
-                          {listType === 'percentage' && (
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                Share %
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                value={recipient.percentage || ''}
-                                onChange={(e) => updateRecipient(recipient.id, 'percentage', e.target.value)}
-                                placeholder="25.00"
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                              />
-                            </div>
+                        {/* Address Field */}
+                        <div className="col-span-7">
+                          <input
+                            type="text"
+                            value={recipient.address}
+                            onChange={(e) => updateRecipient(recipient.id, 'address', e.target.value)}
+                            placeholder="noble1..."
+                            className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          />
+                        </div>
+                        
+                        {/* Remove Button */}
+                        <div className="col-span-1 flex justify-center">
+                          {recipients.length > 1 && (
+                            <button
+                              onClick={() => removeRecipient(recipient.id)}
+                              className="text-red-500 hover:text-red-700 transition-colors p-1"
+                              title="Remove recipient"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
                           )}
                         </div>
                       </div>
 
-                      {/* Percentage Validation for Fund Lists */}
-                      {listType === 'percentage' && (
-                        <div className="mt-2 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-500 dark:text-gray-400">
-                              Total allocation: {getTotalPercentage()}%
-                            </span>
-                            <span className={`font-medium ${
-                              Math.abs(getTotalPercentage() - 100) < 0.01 
-                                ? 'text-green-600 dark:text-green-400' 
-                                : 'text-red-600 dark:text-red-400'
-                            }`}>
-                              {Math.abs(getTotalPercentage() - 100) < 0.01 ? '✓ Balanced' : '⚠ Must equal 100%'}
-                            </span>
-                          </div>
+                      {/* Mobile Layout - Stacked */}
+                      <div className="md:hidden">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Recipient {index + 1}
+                            {recipient.name && (
+                              <span className="ml-2 text-blue-600 dark:text-blue-400 font-normal">
+                                • {recipient.name}
+                              </span>
+                            )}
+                          </span>
+                          {recipients.length > 1 && (
+                            <button
+                              onClick={() => removeRecipient(recipient.id)}
+                              className="text-red-500 hover:text-red-700 transition-colors p-1"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
-                      )}
+                        
+                        <div className="grid grid-cols-1 gap-2">
+                          <input
+                            type="text"
+                            value={recipient.name}
+                            onChange={(e) => updateRecipient(recipient.id, 'name', e.target.value)}
+                            placeholder="Name (optional)"
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          />
+                          <input
+                            type="text"
+                            value={recipient.address}
+                            onChange={(e) => updateRecipient(recipient.id, 'address', e.target.value)}
+                            placeholder="noble1..."
+                            className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          />
+                        </div>
+                      </div>
 
                       {/* Status Indicator */}
                       {recipient.address && (
@@ -690,21 +829,57 @@ export default function PayMultiPage() {
                 </div>
               </div>
 
-              {/* Recipients Summary */}
-              {recipients.length > 10 && (
-                <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-between">
+              {/* Quick Actions for large lists */}
+              {recipients.length > 5 && (
+                <div className="mt-4 flex justify-between items-center">
                   <span className="text-sm text-gray-600 dark:text-gray-400">
                     Showing all {recipients.length} recipients • {validRecipients.length} valid
                   </span>
-                  <button
-                    onClick={() => {
-                      const element = document.querySelector('.max-h-96')
-                      element?.scrollTo({ top: 0, behavior: 'smooth' })
-                    }}
-                    className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400"
-                  >
-                    Scroll to top
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        const newRecipients = Array.from({ length: 5 }, (_, i) => ({
+                          id: `bulk-${Date.now()}-${i}`,
+                          name: '',
+                          address: '',
+                          isValid: false
+                        }))
+                        setRecipients([...recipients, ...newRecipients])
+                      }}
+                      className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400"
+                    >
+                      + Add 5 more
+                    </button>
+                    <button
+                      onClick={() => {
+                        const confirmed = confirm('Remove all empty recipients?')
+                        if (confirmed) {
+                          setRecipients(recipients.filter(r => r.address || r.name))
+                        }
+                      }}
+                      className="text-sm text-red-500 hover:text-red-700 dark:text-red-400"
+                    >
+                      Remove empty
+                    </button>
+                    <button
+                      onClick={() => {
+                        const element = document.querySelector('.max-h-96')
+                        element?.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                      className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400"
+                    >
+                      Scroll to top
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Large List Warning */}
+              {recipients.length > 100 && (
+                <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                    ⚠️ <strong>Large recipient list:</strong> Consider splitting into smaller batches for better performance and reliability.
+                  </p>
                 </div>
               )}
             </div>

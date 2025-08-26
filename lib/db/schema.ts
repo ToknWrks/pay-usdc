@@ -60,6 +60,20 @@ export const transactions = pgTable('transactions', {
   createdAt: timestamp('created_at').defaultNow(),
 })
 
+export const contacts = pgTable('contacts', {
+  id: serial('id').primaryKey(),
+  ownerAddress: text('owner_address').notNull(),
+  name: text('name').notNull(),
+  address: text('address').notNull(),
+  email: text('email'), // Add email field
+  phone: text('phone'), // Add phone field
+  description: text('description'),
+  tags: text('tags'), // Comma-separated tags like "team,developer,frequent"
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type RecipientList = typeof recipientLists.$inferSelect
@@ -70,3 +84,5 @@ export type Batch = typeof batches.$inferSelect
 export type NewBatch = typeof batches.$inferInsert
 export type Transaction = typeof transactions.$inferSelect
 export type NewTransaction = typeof transactions.$inferInsert
+export type Contact = typeof contacts.$inferSelect
+export type NewContact = typeof contacts.$inferInsert

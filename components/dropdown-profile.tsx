@@ -124,7 +124,7 @@ export default function DropdownProfile({ align }: {
   })() : 'Pay USDC'
 
   const walletStatus = isAnyWalletConnected ? 'Wallet Connected' : 'Pay USDC'
-  const userType = isAnyWalletConnected ? 'Web3 User' : 'Administrator'
+  const userType = isAnyWalletConnected ? 'Web3 User' : 'Send USDC to many wallets'
 
   // Get network name
   const getNetworkName = (chainId: number | undefined) => {
