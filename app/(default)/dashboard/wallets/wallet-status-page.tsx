@@ -79,8 +79,6 @@ export default function WalletStatusPage() {
       osmosis: 'OSMO',
       cosmoshub: 'ATOM', 
       noble: 'USDC',
-      juno: 'JUNO',
-      stargaze: 'STARS'
     }
     return symbols[chainName as keyof typeof symbols] || 'NATIVE'
   }

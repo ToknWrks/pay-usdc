@@ -25,7 +25,7 @@ export default function TransactionHistoryPage() {
   const { address: nobleAddress, isWalletConnected: nobleConnected } = useChain('noble')
 
   // Transactions
-  const { transactions, isLoading, error, refreshTransactions } = useTransactions(nobleAddress)
+  const { transactions, batches, isLoading, error, refreshTransactions } = useTransactions(nobleAddress)
 
   useEffect(() => {
     setHasMounted(true)
@@ -74,7 +74,7 @@ export default function TransactionHistoryPage() {
     totalAmount: transactions
       .filter(tx => tx.status === 'confirmed')
       .reduce((sum, tx) => sum + parseFloat(tx.amount), 0),
-    batchCount: 0 // Replace with actual logic to calculate batch count if needed
+    batchCount: batches?.length || 0 // Use actual batches count
   }
 
   if (!hasMounted) {
@@ -93,10 +93,10 @@ export default function TransactionHistoryPage() {
       
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">
+        <h1 className="text-2xl md:text-3xl text-gray-500 dark:text-gray-100 font-bold">
           Transaction History
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
+        <p className="text-gray-600 dark:text-gray-300 mt-2">
           Complete record of your USDC payments and transfers
         </p>
       </div>
@@ -341,7 +341,9 @@ export default function TransactionHistoryPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredTransactions.map((transaction) => {
-                      const isBatch = transaction.batchId && transaction.totalRecipients && transaction.totalRecipients > 1
+                      // Check if transaction is part of a batch
+                      const isBatch = transaction.batchId !== null
+                      const batchInfo = batches?.find(b => b.id === transaction.batchId)
                       const statusColor = transaction.status === 'confirmed' ? 'green' :
                                          transaction.status === 'pending' ? 'yellow' : 'red'
                       
@@ -356,9 +358,9 @@ export default function TransactionHistoryPage() {
                                 {transaction.recipientName?.charAt(0) || '$'}
                               </div>
                               <div className="ml-4">
-                                {isBatch && (
+                                {isBatch && batchInfo && (
                                   <div className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded mb-1 inline-block">
-                                    {transaction.totalRecipients}x BATCH
+                                    {batchInfo.totalRecipients}x BATCH
                                   </div>
                                 )}
                                 <div className="text-sm text-gray-900 dark:text-gray-100 font-mono">

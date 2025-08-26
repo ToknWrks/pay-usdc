@@ -21,28 +21,40 @@ interface Transaction {
   memo?: string | null
 }
 
-export function useTransactions(senderAddress?: string) {
+interface Batch {
+  id: number
+  senderAddress: string
+  txHash: string
+  totalAmount: string
+  totalRecipients: number
+  status: string
+  createdAt: string
+  confirmedAt?: string | null
+  memo?: string | null
+}
+
+export function useTransactions(address?: string) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [batches, setBatches] = useState<Batch[]>([]) // Add batches state
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchTransactions = async () => {
-    if (!senderAddress) return
+    if (!address) return
 
     setIsLoading(true)
     setError(null)
 
     try {
-      const params = new URLSearchParams({ senderAddress })
-      const response = await fetch(`/api/transactions?${params}`)
-
+      const response = await fetch(`/api/transactions?address=${address}`)
+      
       if (!response.ok) {
         throw new Error('Failed to fetch transactions')
       }
 
       const data = await response.json()
-      console.log('Fetched transactions:', data.transactions) // Debug log
       setTransactions(data.transactions || [])
+      setBatches(data.batches || []) // Set batches data
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(errorMessage)
@@ -88,23 +100,24 @@ export function useTransactions(senderAddress?: string) {
   }
 
   const refreshTransactions = () => {
-    if (senderAddress) {
+    if (address) {
       fetchTransactions()
     }
   }
 
   useEffect(() => {
-    if (senderAddress) {
+    if (address) {
       fetchTransactions()
     }
-  }, [senderAddress])
+  }, [address])
 
   return {
     transactions,
+    batches, // Return batches
     isLoading,
     error,
     fetchTransactions,
     createBatchTransaction,
-    refreshTransactions, // Add this
+    refreshTransactions: fetchTransactions,
   }
 }

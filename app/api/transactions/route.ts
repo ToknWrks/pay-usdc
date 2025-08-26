@@ -67,43 +67,30 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const senderAddress = searchParams.get('senderAddress')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const address = searchParams.get('address')
 
-    if (!senderAddress) {
-      return NextResponse.json({ error: 'Sender address required' }, { status: 400 })
+    if (!address) {
+      return NextResponse.json({ error: 'Address required' }, { status: 400 })
     }
 
-    // Get transactions with optional batch information (handles legacy transactions)
-    const transactionList = await db
-      .select({
-        id: transactions.id,
-        batchId: transactions.batchId,
-        senderAddress: transactions.senderAddress,
-        recipientName: transactions.recipientName,
-        recipientAddress: transactions.recipientAddress,
-        amount: transactions.amount,
-        status: transactions.status,
-        createdAt: transactions.createdAt,
-        // Batch information (nullable for legacy transactions)
-        txHash: batches.txHash,
-        totalAmount: batches.totalAmount,
-        totalRecipients: batches.totalRecipients,
-        batchStatus: batches.status,
-        blockHeight: batches.blockHeight,
-        confirmedAt: batches.confirmedAt,
-        memo: batches.memo,
-      })
+    // Fetch transactions
+    const userTransactions = await db
+      .select()
       .from(transactions)
-      .leftJoin(batches, eq(transactions.batchId, batches.id)) // LEFT JOIN handles legacy transactions
-      .where(eq(transactions.senderAddress, senderAddress))
+      .where(eq(transactions.senderAddress, address))
       .orderBy(desc(transactions.createdAt))
-      .limit(limit)
 
-    console.log('Fetching transactions for:', senderAddress)
-    console.log('Query result:', transactionList)
+    // Fetch batches
+    const userBatches = await db
+      .select()
+      .from(batches)
+      .where(eq(batches.senderAddress, address))
+      .orderBy(desc(batches.createdAt))
 
-    return NextResponse.json({ transactions: transactionList })
+    return NextResponse.json({ 
+      transactions: userTransactions,
+      batches: userBatches 
+    })
   } catch (error) {
     console.error('Error fetching transactions:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

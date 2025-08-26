@@ -78,6 +78,25 @@ export default function PayMultiPage() {
     setHasMounted(true)
   }, [])
 
+  // Add this useEffect for automatic positioning
+  useEffect(() => {
+    if (hasMounted && nobleAddress) {
+      // Small delay to ensure DOM is fully rendered
+      setTimeout(() => {
+        const paymentSection = document.getElementById('wallet-status')
+        if (paymentSection) {
+          const headerHeight = 80 // Approximate header height
+          const elementTop = paymentSection.offsetTop - headerHeight
+          
+          window.scrollTo({
+            top: elementTop,
+            behavior: 'smooth'
+          })
+        }
+      }, 100)
+    }
+  }, [hasMounted, nobleAddress])
+
   // Only load list if explicitly specified in URL
   useEffect(() => {
     const loadListId = searchParams.get('loadList')
@@ -378,11 +397,11 @@ export default function PayMultiPage() {
         
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">
-            Send USDC to Multiple Recipients
+          <h1 className="text-xl md:text-3xl text-gray-500 dark:text-gray-100 font-bold">
+            USDC Payments
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Send USDC to multiple Noble addresses in a single transaction
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
+            Send USDC to multiple wallets. Create Distribution Lists. Send by percentage or fixed amount.
           </p>
         </div>
 
@@ -393,7 +412,10 @@ export default function PayMultiPage() {
           <div className="xl:col-span-2 space-y-6">
             
             {/* Connection Status */}
-            <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6">
+            <div 
+              id="wallet-status"
+              className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-6"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">

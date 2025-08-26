@@ -297,10 +297,10 @@ export default function ContactsPage() {
         
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">
+          <h1 className="text-2xl md:text-3xl text-gray-500 dark:text-gray-100 font-bold">
             Contacts
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
             Manage your saved contacts for quick USDC payments
           </p>
         </div>

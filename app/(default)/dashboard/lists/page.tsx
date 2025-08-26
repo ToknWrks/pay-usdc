@@ -2,8 +2,8 @@ import { Metadata } from 'next'
 import ListsPage from './lists-page'
 
 export const metadata: Metadata = {
-  title: 'Recipient Lists | Pay USDC',
-  description: 'Manage your saved recipient lists for USDC payments. Create, edit, and organize payment recipients.',
+  title: 'USDC Recipient Lists | Pay USDC',
+  description: 'Manage your saved recipient lists for USDC payments. Create, edit, and manage bulk payment USDC Payment Lists.',
   keywords: ['recipient lists', 'USDC', 'payments', 'Noble', 'bulk payments', 'crypto'],
   openGraph: {
     title: 'Recipient Lists - Pay USDC',

@@ -151,11 +151,11 @@ export default function RecipientListsPage() {
         
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">
-            Recipient Lists
+          <h1 className="text-2xl md:text-3xl text-gray-500 dark:text-gray-100 font-bold">
+            USDC Payment Lists
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Create and manage your saved recipient lists for bulk USDC payments
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
+            Create lists of multiple wallet addresses for bulk USDC payments. Pay USDC in fixed amounts or by percentage of total.
           </p>
         </div>
 
