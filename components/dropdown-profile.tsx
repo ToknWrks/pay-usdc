@@ -26,8 +26,6 @@ export default function DropdownProfile({ align }: {
   // Cosmos Wallets - get all chains
   const osmosis = useCosmosWallet('osmosis')
   const cosmoshub = useCosmosWallet('cosmoshub')
-  const juno = useCosmosWallet('juno')
-  const stargaze = useCosmosWallet('stargaze')
   const noble = useCosmosWallet('noble') // Add Noble wallet
 
   // Add Noble balance
@@ -56,7 +54,7 @@ export default function DropdownProfile({ align }: {
       }
 
       // Disconnect all connected Cosmos wallets (include Noble)
-      const cosmosWallets = [osmosis, cosmoshub, juno, stargaze, noble]
+      const cosmosWallets = [osmosis, cosmoshub, noble]
       
       await Promise.all(
         cosmosWallets.map(async (wallet) => {
@@ -107,8 +105,6 @@ export default function DropdownProfile({ align }: {
     evmConnected || 
     osmosis.isConnected || 
     cosmoshub.isConnected || 
-    juno.isConnected || 
-    stargaze.isConnected ||
     noble.isConnected
   )
 
@@ -138,17 +134,49 @@ export default function DropdownProfile({ align }: {
     return chainId ? networks[chainId] || `Chain ${chainId}` : 'Unknown'
   }
 
+  const totalBalance = nobleBalance.native?.formatted || 0; // Example total balance
+  const connectedWallets = [osmosis, cosmoshub, noble].filter(wallet => wallet.isConnected);
+
   return (
     <>
       <Menu as="div" className="relative inline-flex">
+        {/* Replace the existing profile trigger button with USDC icon */}
         <MenuButton className="inline-flex justify-center items-center group">
-          <Image className="w-8 h-8 rounded-full" src={UserAvatar} width={32} height={32} alt="User" />
           <div className="flex items-center truncate">
-            <span className="truncate ml-2 text-sm font-medium text-gray-600 dark:text-gray-100 group-hover:text-gray-800 dark:group-hover:text-white">
-              {displayName}
-            </span>
+            {/* USDC Icon instead of avatar */}
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+              {/* Same SVG as Send USDC in sidebar */}
+              <svg 
+                className="shrink-0 text-white"
+                xmlns="http://www.w3.org/2000/svg" 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M16.7 8a3 3 0 0 0 -2.7 -2h-4a3 3 0 0 0 0 6h4a3 3 0 0 1 0 6h-4a3 3 0 0 1 -2.7 -2" />
+                <path d="M12 3v3m0 12v3" />
+              </svg>
+            </div>
+            
+            {/* Wallet info */}
+            <div className="ml-2 text-left">
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                {Number(totalBalance) > 0 ? `$${Number(totalBalance).toFixed(2)}` : 'Wallet'}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                {isAnyWalletConnected ? `${connectedWallets.length} connected` : 'Not connected'}
+              </div>
+            </div>
+            
+            {/* Dropdown arrow */}
             <svg className="w-3 h-3 shrink-0 ml-1 fill-current text-gray-400 dark:text-gray-500" viewBox="0 0 12 12">
-              <path d="M5.9 11.4L.5 6l1.4-1.4 4 4 4-4L11.3 6z" />
+              <path d="m5.9 11.4-.8-.8L9.6 6 5.1 1.4l.8-.8L11.4 6z" />
             </svg>
           </div>
         </MenuButton>
