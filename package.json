@@ -28,6 +28,7 @@
     "@neondatabase/serverless": "^0.10.4",
     "@reown/appkit": "^1.7.20",
     "@reown/appkit-adapter-wagmi": "^1.7.20",
+    "@skip-go/client": "^1.5.4",
     "@tanstack/react-query": "^5.85.5",
     "@types/node": "^20.10.4",
     "@types/react": "^18.2.42",

@@ -15,9 +15,9 @@ export default function DashboardCard04() {
     datasets: [
       // Light blue bars
       {
-        label: 'Direct',
+        label: 'Staked',
         data: [
-          800, 1600, 900, 1300, 1950, 1700,
+          16000, 13000, 10000, 12000, 11000, 9000,
         ],
         backgroundColor: tailwindConfig.theme.colors.sky[500],
         hoverBackgroundColor: tailwindConfig.theme.colors.sky[600],
@@ -27,12 +27,24 @@ export default function DashboardCard04() {
       },
       // Blue bars
       {
-        label: 'Indirect',
+        label: 'Liquid Staked',
         data: [
-          4900, 2600, 5350, 4800, 5200, 4800,
+          2500, 2600, 2700, 3000, 3200, 3600,
         ],
         backgroundColor: tailwindConfig.theme.colors.violet[500],
         hoverBackgroundColor: tailwindConfig.theme.colors.violet[600],
+        barPercentage: 0.7,
+        categoryPercentage: 0.7,
+        borderRadius: 4,
+      },
+       // Green bars
+       {
+        label: 'Stablecoins',
+        data: [
+          100, 400, 700, 1000, 1500, 2000,
+        ],
+        backgroundColor: tailwindConfig.theme.colors.green[500],
+        hoverBackgroundColor: tailwindConfig.theme.colors.green[600],
         barPercentage: 0.7,
         categoryPercentage: 0.7,
         borderRadius: 4,

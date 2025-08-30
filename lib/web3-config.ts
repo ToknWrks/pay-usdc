@@ -1,9 +1,11 @@
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-import { mainnet, arbitrum, polygon, base } from '@reown/appkit/networks'
+import { mainnet, arbitrum, polygon, base, optimism, bsc, avalanche } from '@reown/appkit/networks'
 
-// 1. Get projectId from https://cloud.reown.com
-export const projectId = '0fd04001294706c882560d305ca50086'
+// 1. Get projectId from environment variable or fallback to default
+export const projectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || '0fd04001294706c882560d305ca50086'
+
+console.log('Project ID:', projectId) // Debug log
 
 if (!projectId) {
   throw new Error('Project ID is not defined')
@@ -12,7 +14,7 @@ if (!projectId) {
 // 2. Set up Wagmi adapter
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
-  networks: [mainnet, arbitrum, polygon, base]
+  networks: [mainnet, arbitrum, polygon, base, optimism, bsc, avalanche]
 })
 
 // 3. Configure the metadata
@@ -27,7 +29,7 @@ const metadata = {
 export const modal = createAppKit({
   adapters: [wagmiAdapter],
   projectId,
-  networks: [mainnet, arbitrum, polygon, base],
+  networks: [mainnet, arbitrum, polygon, base, optimism, bsc, avalanche],
   defaultNetwork: mainnet,
   metadata,
   features: {
