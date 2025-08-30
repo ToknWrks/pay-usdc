@@ -212,6 +212,7 @@ export default function Sidebar({
             <ul className="mt-3">
               
               {/* Dashboard/Analytics */}
+              {/*
               <li className={`pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-[linear-gradient(135deg,var(--tw-gradient-stops))] ${(segments.includes('dashboard') && !segments.includes('pay') && !segments.includes('lists') && !segments.includes('contacts') && !segments.includes('wallets')) && 'from-violet-500/[0.12] dark:from-violet-500/[0.24] to-violet-500/[0.04]'}`}>
                 <SidebarLink href="/dashboard">
                   <div className="flex items-center">
@@ -224,6 +225,7 @@ export default function Sidebar({
                   </div>
                 </SidebarLink>
               </li>
+              */}
 
               {/* Transaction History */}
               <li className={`pl-4 pr-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-[linear-gradient(135deg,var(--tw-gradient-stops))] ${segments.includes('history') && 'from-violet-500/[0.12] dark:from-violet-500/[0.24] to-violet-500/[0.04]'}`}>
