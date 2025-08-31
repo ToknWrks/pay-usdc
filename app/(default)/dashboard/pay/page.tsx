@@ -2,9 +2,9 @@ import { Metadata } from 'next'
 import PayMultiPage from './pay-multi'
 
 export const metadata: Metadata = {
-  title: 'Connected Wallets | Pay USDC',
-  description: 'View and manage your EVM and Cosmos wallet connections. Connect MetaMask, Keplr, Leap and other wallets.',
-  keywords: ['wallet', 'EVM', 'Cosmos', 'MetaMask', 'Keplr', 'Leap', 'USDC', 'cryptocurrency'],
+  title: 'Send USDC Payments | Pay USDC',
+  description: 'send USDC payments across EVM and Cosmos chains with MetaMask, Keplr, and Leap wallets.',
+  keywords: ['USDC', 'USDC Payments', 'Send USDC to multiple wallets', 'bulk send USDC', 'usdc crypto payments', 'crypto payroll', 'EVM wallets', 'Arbitrum USDC', 'Optimism USDC', 'Base USDC', 'BSC USDC', 'Avalanche USDC', 'Cosmos USDC', 'Osmosis USDC', 'Juno USDC'],
   openGraph: {
     title: 'Connected Wallets - Pay USDC',
     description: 'Manage your multi-chain wallet connections',
