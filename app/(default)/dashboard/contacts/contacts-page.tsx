@@ -17,9 +17,10 @@ interface CreateContactModalProps {
     tags?: string
   }) => void
   isSaving: boolean
+  initialData?: any // Add this prop
 }
 
-function CreateContactModal({ isOpen, onClose, onSave, isSaving }: CreateContactModalProps) {
+function CreateContactModal({ isOpen, onClose, onSave, isSaving, initialData }: CreateContactModalProps) {
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
   const [email, setEmail] = useState('')
@@ -88,13 +89,35 @@ function CreateContactModal({ isOpen, onClose, onSave, isSaving }: CreateContact
     onClose()
   }
 
+  // ADD THIS EFFECT TO POPULATE FORM WHEN EDITING
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || '')
+      setAddress(initialData.address || '')
+      setEmail(initialData.email || '')
+      setPhone(initialData.phone || '')
+      setDescription(initialData.description || '')
+      setTags(initialData.tags || '')
+    } else {
+      // Clear form for new contact
+      setName('')
+      setAddress('')
+      setEmail('')
+      setPhone('')
+      setDescription('')
+      setTags('')
+    }
+    setAddressError('')
+    setEmailError('')
+  }, [initialData, isOpen])
+
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-          Add New Contact
+          {initialData ? 'Edit Contact' : 'Add New Contact'}
         </h2>
         
         <div className="space-y-4">
@@ -208,7 +231,7 @@ function CreateContactModal({ isOpen, onClose, onSave, isSaving }: CreateContact
             disabled={!name.trim() || !address.trim() || !!addressError || !!emailError || isSaving}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isSaving ? 'Adding...' : 'Add Contact'}
+            {isSaving ? 'Saving...' : (initialData ? 'Update Contact' : 'Add Contact')}
           </button>
         </div>
       </div>
@@ -221,12 +244,16 @@ export default function ContactsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  
+  // ADD EDIT STATES
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingContact, setEditingContact] = useState<any>(null)
 
   // Noble wallet connection
   const { address: nobleAddress, isWalletConnected: nobleConnected } = useChain('noble')
 
-  // Contacts management
-  const { contacts, isLoading, error, fetchContacts, createContact, deleteContact } = useContacts(nobleAddress)
+  // Contacts management - ADD updateContact to the destructuring
+  const { contacts, isLoading, error, fetchContacts, createContact, deleteContact, updateContact } = useContacts(nobleAddress)
 
   useEffect(() => {
     setHasMounted(true)
@@ -246,6 +273,35 @@ export default function ContactsPage() {
       setShowCreateModal(false)
     } catch (error) {
       alert(`Failed to create contact: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // ADD THESE FUNCTIONS AFTER handleCreateContact
+  const handleEditContact = (contact: any) => {
+    setEditingContact(contact)
+    setShowEditModal(true)
+  }
+
+  const handleUpdateContact = async (contactData: {
+    name: string
+    address: string
+    email?: string
+    phone?: string
+    description?: string
+    tags?: string
+  }) => {
+    if (!editingContact) return
+    
+    setIsSaving(true)
+    try {
+      await updateContact(editingContact.id, contactData)
+      setShowEditModal(false)
+      setEditingContact(null)
+    } catch (error) {
+      console.error('Failed to update contact:', error)
+      alert('Failed to update contact. Please try again.')
     } finally {
       setIsSaving(false)
     }
@@ -426,15 +482,26 @@ export default function ContactsPage() {
                         </div>
                       </div>
                       
-                      <button
-                        onClick={() => handleDeleteContact(contact.id, contact.name)}
-                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                        title="Delete contact"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                      {/* Add this Edit button alongside your existing action buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditContact(contact)}
+                          className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        
+                        {/* Your existing Delete button */}
+                        <button
+                          onClick={() => handleDeleteContact(contact.id, contact.name)}
+                          className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                          title="Delete contact"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="mb-4">
@@ -493,12 +560,7 @@ export default function ContactsPage() {
                       >
                         Send USDC
                       </Link>
-                      <Link
-                        href={`/dashboard/contacts/${contact.id}`}
-                        className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        Edit
-                      </Link>
+                     
                     </div>
 
                     <div className="mt-4 text-xs text-gray-400 dark:text-gray-500">
@@ -519,6 +581,20 @@ export default function ContactsPage() {
         onSave={handleCreateContact}
         isSaving={isSaving}
       />
+
+      {/* ADD THIS EDIT MODAL */}
+      {showEditModal && editingContact && (
+        <CreateContactModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false)
+            setEditingContact(null)
+          }}
+          onSave={handleUpdateContact}
+          isSaving={isSaving}
+          initialData={editingContact}
+        />
+      )}
     </>
   )
 }

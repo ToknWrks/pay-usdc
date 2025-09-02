@@ -4,7 +4,7 @@ export default function Logo() {
   return (
     <Link className="block" href="/">
       <svg
-        className="fill-violet-500"
+        className="fill-blue-500"
         xmlns="http://www.w3.org/2000/svg"
         width={32}
         height={32}
