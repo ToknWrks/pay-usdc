@@ -3,6 +3,7 @@ import { pgTable, text, timestamp, boolean, serial, decimal, integer } from 'dri
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   nobleAddress: text('noble_address').notNull(),
+  customUrl: text('custom_url').unique(), 
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

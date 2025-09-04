@@ -15,6 +15,13 @@
       "when": 1755831194088,
       "tag": "0001_curved_wallop",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1756924300386,
+      "tag": "0002_lowly_lady_bullseye",
+      "breakpoints": true
     }
   ]
 }

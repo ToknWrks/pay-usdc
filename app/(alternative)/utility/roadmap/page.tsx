@@ -83,7 +83,7 @@ export default function Roadmap() {
                         </div>
                         <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 pl-9">Product V1 - Early Access</h3>
                       </div>
-                      <div className="pl-9">Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</div>
+                      <div className="pl-9">Web3 Connectivity, Send TX, Contacts, Distributioin Lists, </div>
                     </li>
                     {/* List item */}
                     <li className="relative py-2">
