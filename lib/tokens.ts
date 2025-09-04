@@ -13,7 +13,7 @@ export interface TokenConfig {
 
 export const TOKENS: Record<string, TokenConfig> = {
   
- // Swap TO Tokens 
+ // Swap Tokens 
       "USDC": {
         symbol: "USDC",
         name: "USD Coin",
@@ -145,6 +145,9 @@ export const getPoolIdForTokenPair = (token1Symbol: string, token2Symbol: string
     "OSMO-USDC": "1263", // OSMO/USDC pool
     "USDC-REGEN": "1472", // USDC/REGEN pool
     "TIA-USDC": "1247", // TIA/USDC pool
+    "stATOM-USDC": "1419", // stATOM/USDC pool
+    "ETH -USDC": "1135", // ETH/USDC pool
+    
     
     // TIA pools
     "TIA-OSMO": "1248", // TIA/OSMO pool

@@ -41,9 +41,10 @@ export const endpointOptions = {
   endpoints: {
     osmosis: {
       rpc: [
-        'https://osmosis-rpc.quickapi.com',
-        'https://rpc.osmosis.zone',
+        'https://osmosis-rpc.publicnode.com:443',
         'https://osmosis-rpc.polkachu.com',
+        'https://rpc.osmosis.zone',
+        
       ],
       rest: [
         'https://osmosis-api.quickapi.com',
