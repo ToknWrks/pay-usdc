@@ -12,7 +12,7 @@ import DropdownNotifications from '@/components/dropdown-notifications'
 import DropdownHelp from '@/components/dropdown-help'
 import EditMenu from '@/components/edit-menu'
 import Datepicker from '@/components/datepicker'
-import AssetSelector from '@/components/asset-selector'
+
 
 export default function DropdownLibrary() {
   return (
@@ -85,11 +85,7 @@ export default function DropdownLibrary() {
               <Datepicker />
             </div>
 
-            {/* Asset Selector */}
-            <div>
-              <h2 className="text-2xl text-gray-800 dark:text-gray-100 font-bold mb-6">Asset Selector</h2>
-              <AssetSelector onAssetSelect={(asset) => console.log(asset)} />
-            </div>
+           
 
           </div>
 
