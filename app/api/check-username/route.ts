@@ -2,6 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserByCustomUrl } from '@/lib/users'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     // Use searchParams directly instead of new URL(request.url)
