@@ -41,7 +41,7 @@ export default function Onboarding01() {
                           <path className="text-violet-300" d="m11 12.588-9-5V18a1 1 0 0 0 .514.874L11 23.588v-11Z" />
                           <path className="text-violet-200" d="M13 12.588v11l8.486-4.714A1 1 0 0 0 22 18V7.589l-9 4.999Z" />
                         </svg>
-                        <span>I have a company</span>
+                        <span>I have a Keplr or Leap Wallet already</span>
                       </div>
                       <div className="absolute inset-0 border-2 border-transparent peer-checked:border-violet-400 dark:peer-checked:border-violet-500 rounded-lg pointer-events-none" aria-hidden="true"></div>
                     </label>
@@ -52,7 +52,7 @@ export default function Onboarding01() {
                           <path className="text-violet-500" d="m12 10.856 9-5-8.514-4.73a1 1 0 0 0-.972 0L3 5.856l9 5Z" />
                           <path className="text-violet-300" d="m11 12.588-9-5V18a1 1 0 0 0 .514.874L11 23.588v-11Z" />
                         </svg>
-                        <span>I’m a freelance / contractor</span>
+                        <span>I’ve got a different wallet but not Keplr or Leap</span>
                       </div>
                       <div className="absolute inset-0 border-2 border-transparent peer-checked:border-violet-400 dark:peer-checked:border-violet-500 rounded-lg pointer-events-none" aria-hidden="true"></div>
                     </label>
@@ -62,7 +62,7 @@ export default function Onboarding01() {
                         <svg className="w-6 h-6 shrink-0 fill-current mr-4" viewBox="0 0 24 24">
                           <path className="text-violet-500" d="m12 10.856 9-5-8.514-4.73a1 1 0 0 0-.972 0L3 5.856l9 5Z" />
                         </svg>
-                        <span>I'm just getting started</span>
+                        <span>I'm just getting started. I've never used a crypto wallet.</span>
                       </div>
                       <div className="absolute inset-0 border-2 border-transparent peer-checked:border-violet-400 dark:peer-checked:border-violet-500 rounded-lg pointer-events-none" aria-hidden="true"></div>
                     </label>
