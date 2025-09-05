@@ -1,5 +1,11 @@
 // app/(default)/staking/tokens.ts
 
+export interface PoolData {
+  poolId: string;
+  fee: number; // as decimal (0.003 = 0.3%)
+  poolType: 'stable' | 'standard' | 'lst'; // liquid staking token
+}
+
 export interface TokenConfig {
   symbol: string;
   name: string;
@@ -7,7 +13,8 @@ export interface TokenConfig {
   assetId: string; // CoinGecko ID
   denom: string; // Denom on Osmosis
   decimals: number;
-  sourceToken?: string; 
+  sourceToken?: string;
+  poolData?: PoolData; // Add this optional field
   // Any other properties you might need
 }
 
@@ -28,7 +35,8 @@ export const TOKENS: Record<string, TokenConfig> = {
         icon: "https://raw.githubusercontent.com/cosmos/chain-registry/master/_non-cosmos/bitcoin/images/btc.png",
         assetId: "bitcoin",
         denom: "factory/osmo1z6r6qdknhgsc0zeracktgpcxf43j6sekq07nw8sxduc9lg0qjjlqfu25e3/alloyed/allBTC", // IBC denom on Osmosis
-        decimals: 8
+        decimals: 8,
+        poolData: { poolId: "1943", fee: 0.0001, poolType: "standard" }
       },
       "ETH": {
       symbol: "ETH",
@@ -36,7 +44,8 @@ export const TOKENS: Record<string, TokenConfig> = {
       icon: "https://raw.githubusercontent.com/cosmos/chain-registry/master/_non-cosmos/ethereum/images/eth-white.png",
       assetId: "ethereum",
       denom: "ibc/EA1D43981D5C9A1C4AAEA9C23BB1D4FA126BA9BC7020A25E0AE4AA841EA25DC5", // IBC denom on Osmosis
-      decimals: 18
+      decimals: 18,
+      poolData: { poolId: "1948", fee: 0.0005, poolType: "standard" }
     },
 
       "ATOM": {
@@ -45,15 +54,17 @@ export const TOKENS: Record<string, TokenConfig> = {
       icon: "https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/images/atom.png",
       assetId: "cosmos",
       denom: "ibc/27394FB092D2ECCD56123C74F36E4C1F926001CEADA9CA97EA622B25F41E5EB2", // IBC denom on Osmosis
-      decimals: 6
+      decimals: 6,
+      poolData: { poolId: "1251", fee: 0.003, poolType: "standard" }
     },
     "OSMO": {
       symbol: "OSMO",
-      name: "osmosis",
+      name: "Osmosis",
       icon: "https://raw.githubusercontent.com/cosmos/chain-registry/master/osmosis/images/osmo.png",
       assetId: "osmosis",
       denom: "uosmo", // IBC denom on Osmosis
-      decimals: 6
+      decimals: 6,
+      poolData: { poolId: "1464", fee: 0.003, poolType: "standard" }
     },
     "REGEN": {
       symbol: "REGEN",
@@ -81,7 +92,8 @@ export const TOKENS: Record<string, TokenConfig> = {
     decimals: 6,
     icon: "https://raw.githubusercontent.com/cosmos/chain-registry/master/stride/images/statom.png",
     assetId: "stride-staked-atom",
-    sourceToken: "ATOM"
+    sourceToken: "ATOM",
+    poolData: { poolId: "803", fee: 0.001, poolType: "lst" }
   },
   
   
@@ -127,39 +139,44 @@ export const getTokenByDenom = (denom: string): TokenConfig | undefined => {
   return Object.values(TOKENS).find(token => token.denom === denom);
 };
 
-// Helper functions to get pool IDs for token pairs
-export const getPoolIdForTokenPair = (token1Symbol: string, token2Symbol: string): string | null => {
-  const poolMap: Record<string, string> = {
-    // ATOM  pools
-    "ATOM-BTC": "1216", // ATOM/BTC pool
-    "ATOM-USDC": "1282", // ATOM/USDC pool
-    
-    // OSMO pools
-    "OSMO-BTC": "1470", // OSMO/BTC pool
-    "OSMO-REGEN": "42", // OSMO/REGEN pool
-    "OSMO-ATOM": "1", // OSMO/ATOM pool
-    "OSMO-ETH": "1134", // OSMO/ETH pool
-    
-    // USDC pools
-    "USDC-BTC": "1493", // USDC/BTC pool
-    "OSMO-USDC": "1263", // OSMO/USDC pool
-    "USDC-REGEN": "1472", // USDC/REGEN pool
-    "TIA-USDC": "1247", // TIA/USDC pool
-    "stATOM-USDC": "1419", // stATOM/USDC pool
-    "ETH -USDC": "1135", // ETH/USDC pool
-    
-    
-    // TIA pools
-    "TIA-OSMO": "1248", // TIA/OSMO pool
-    "stTIA-TIA": "1428", // stTIA/TIA pool
-    
+// Helper functions to get pool data
+export function getTokenPoolData(symbol: string): PoolData | null {
+  const token = TOKENS[symbol];
+  return token?.poolData || null;
+}
 
-    // Add more pairs as needed
+export function getSwapPoolId(symbol: string): string {
+  const token = TOKENS[symbol];
+  if (token?.poolData?.poolId) {
+    return token.poolData.poolId;
+  }
+
+  // Fallback for tokens without pool data
+  const fallbackPools: Record<string, string> = {
+    'OSMO': '1464',
+    'ATOM': '1',
+    'ETH': '1948',
+    'BTC': '1943',
+    'USDT': '678'
   };
-  
-  // Try both directions
-  const key1 = `${token1Symbol}-${token2Symbol}`;
-  const key2 = `${token2Symbol}-${token1Symbol}`;
-  
-  return poolMap[key1] || poolMap[key2] || null;
-};
+
+  return fallbackPools[symbol] || '1'; // Default to pool 1
+}
+
+export function getSwapFeePercent(symbol: string): number {
+  return getTokenPoolData(symbol)?.fee || 0.003;
+}
+
+export function getPoolType(symbol: string): string {
+  const poolType = getTokenPoolData(symbol)?.poolType || "standard";
+  switch (poolType) {
+    case 'stable': return 'Stablecoin Pool';
+    case 'lst': return 'Liquid Staking Pool';
+    default: return 'Standard Pool';
+  }
+}
+
+export function formatFeePercent(fee: number): string {
+  return `${(fee * 100).toFixed(fee < 0.001 ? 2 : 1)}%`;
+}
+
