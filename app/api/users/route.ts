@@ -2,6 +2,39 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, users } from '@/lib/db'
 import { eq } from 'drizzle-orm'
 
+// Add the GET handler
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const nobleAddress = searchParams.get('nobleAddress')
+
+    if (!nobleAddress) {
+      return NextResponse.json({ error: 'Noble address is required' }, { status: 400 })
+    }
+
+    console.log('🔍 GET: Looking for user with Noble address:', nobleAddress)
+
+    // Find user by Noble address
+    const existingUser = await db.select().from(users).where(
+      eq(users.nobleAddress, nobleAddress)
+    ).limit(1)
+
+    console.log('🔍 GET: Query result:', existingUser)
+
+    if (existingUser.length === 0) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const user = existingUser[0]
+    console.log('✅ GET: Returning user data:', user)
+
+    return NextResponse.json({ user })
+  } catch (error) {
+    console.error('❌ GET: Error fetching user:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('=== API Route Called ===')
@@ -58,29 +91,5 @@ export async function POST(request: NextRequest) {
       error: 'Internal server error', 
       details: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 })
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const nobleAddress = searchParams.get('nobleAddress')
-
-    if (!nobleAddress) {
-      return NextResponse.json({ error: 'Noble address parameter required' }, { status: 400 })
-    }
-
-    const user = await db.select().from(users).where(
-      eq(users.nobleAddress, nobleAddress)
-    ).limit(1)
-
-    if (user.length === 0) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    return NextResponse.json({ user: user[0] })
-  } catch (error) {
-    console.error('Error fetching user:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

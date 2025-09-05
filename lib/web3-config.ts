@@ -21,7 +21,7 @@ export const wagmiAdapter = new WagmiAdapter({
 const metadata = {
   name: 'Pay USDC',
   description: 'Web3 USDC Payment App',
-  url: 'https://pay-usdc.app',
+  url: 'https://payusdc.app',
   icons: ['https://avatars.githubusercontent.com/u/37784886']
 }
 

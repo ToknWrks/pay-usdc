@@ -8,8 +8,6 @@ import CosmosWalletModal from '@/components/cosmos-wallet-modal'
 import AssetSelector from '@/components/asset-selector'
 import { useOsmosisAssets } from '@/hooks/use-osmosis-assets'
 import { TOKENS, getSwapPoolId, getSwapFeePercent, getPoolType, formatFeePercent } from '@/lib/tokens'
-import { useOsmosisSwap } from '@/hooks/use-osmosis-swap'
-import { formatRouteDisplay, calculateOutputAmount, type RouteResponse } from '@/lib/osmosis-router'
 
 interface User {
   id: number
@@ -38,13 +36,10 @@ export default function ProfileClient({ user }: ProfileClientProps) {
   const [transferTxHash, setTransferTxHash] = useState('')
   
   // Noble wallet connection
-  const { address: nobleAddress, isWalletConnected } = useChain('noble')
+  const { address: nobleAddress, isWalletConnected: nobleConnected } = useChain('noble')
 
   // Osmosis assets
-  const { assets, isLoading, error, refetch, connect, isConnected, highestValueAsset } = useOsmosisAssets()
-
-  // Osmosis swap
-  const { route, isLoading: routeLoading, error: routeError, getSwapRoute, clearRoute } = useOsmosisSwap()
+  const { assets, isLoading, error, refetch, connect, isConnected: osmosisConnected, highestValueAsset } = useOsmosisAssets()
 
   // Auto-select highest value asset when available
   useEffect(() => {
@@ -59,15 +54,6 @@ export default function ProfileClient({ user }: ProfileClientProps) {
       setSelectedAsset(highestValueAsset)
     }
   }, [highestValueAsset, selectedAsset])
-
-  // Clear route when asset changes
-  useEffect(() => {
-    if (selectedAsset && swapAmount) {
-      handleSwapAmountChange(swapAmount)
-    } else {
-      clearRoute()
-    }
-  }, [selectedAsset])
 
   // HELPER FUNCTIONS 
   const calculateSwapFee = (amount: string, asset: any): number => {
@@ -110,29 +96,11 @@ export default function ProfileClient({ user }: ProfileClientProps) {
   }
 
   const handleSendUSDC = () => {
-    if (!isWalletConnected) {
+    if (!nobleConnected) {
       alert('Please connect your Noble wallet first')
       return
     }
     alert(`Send ${amount} USDC to @${user.customUrl}`)
-  }
-
-  const handleSwapAmountChange = async (amount: string) => {
-    setSwapAmount(amount)
-    
-    if (selectedAsset && amount && parseFloat(amount) > 0) {
-      // Get optimal route when amount changes
-      await getSwapRoute(
-        selectedAsset.denom,
-        TOKENS.USDC.denom,
-        amount,
-        selectedAsset.decimals,
-        selectedAsset.symbol, // Add symbol
-        selectedAsset.price    // Add price
-      )
-    } else {
-      clearRoute()
-    }
   }
 
   const copyAddress = () => {
@@ -150,7 +118,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
   }
 
   const handleConnectWallet = () => {
-    setIsCosmosModalOpen(true)
+    setIsCosmosModalOpen(true) // Always open the same modal
   }
 
   const getStepStatus = (stepNumber: 1 | 2 | 3) => {
@@ -213,7 +181,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
 
             {/* Desktop Action buttons */}
             <div className="flex flex-col gap-2">
-              {!isWalletConnected ? (
+              {!nobleConnected ? (
                 <button
                   onClick={handleConnectWallet}
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
@@ -270,7 +238,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {!isWalletConnected ? (
+              {!nobleConnected ? (
                 <button
                   onClick={handleConnectWallet}
                   className="col-span-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
@@ -373,16 +341,16 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                   </div>
                   <button
                     onClick={() => {
-                      if (!isWalletConnected) {
+                      if (!nobleConnected) {
                         handleConnectWallet()
                       } else {
                         handleSendUSDC()
                       }
                     }}
-                    disabled={isWalletConnected && (!amount || parseFloat(amount) <= 0)}
+                    disabled={nobleConnected && (!amount || parseFloat(amount) <= 0)}
                     className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                   >
-                    {!isWalletConnected ? 'Connect Noble Wallet' : 'Send USDC'}
+                    {!nobleConnected ? 'Connect Wallet' : 'Send USDC'}
                   </button>
                 </div>
               )}
@@ -411,7 +379,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                         <input
                           type="number"
                           value={swapAmount}
-                          onChange={(e) => handleSwapAmountChange(e.target.value)}
+                          onChange={(e) => setSwapAmount(e.target.value)}
                           placeholder="0.00"
                           step="0.000001"
                           max={selectedAsset.amount}
@@ -420,21 +388,6 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                         <div className="text-xs text-gray-500 mt-1">
                           Available: {selectedAsset.amount} {selectedAsset.symbol} (${selectedAsset.value.toFixed(2)})
                         </div>
-                        
-                        {/* Route loading indicator */}
-                        {routeLoading && (
-                          <div className="text-xs text-blue-500 mt-1 flex items-center">
-                            <div className="animate-spin w-3 h-3 border border-blue-500 border-t-transparent rounded-full mr-1"></div>
-                            Getting best route...
-                          </div>
-                        )}
-                        
-                        {/* Route error */}
-                        {routeError && (
-                          <div className="text-xs text-red-500 mt-1">
-                            {routeError}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -468,7 +421,9 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                     <input
                       type="number"
                       value={
-                        route ? calculateOutputAmount(route.amount_out, TOKENS.USDC.decimals) : ''
+                        selectedAsset && swapAmount && selectedAsset.price
+                          ? (parseFloat(swapAmount) * selectedAsset.price).toFixed(6)
+                          : ''
                       }
                       placeholder="0.00"
                       readOnly
@@ -478,30 +433,27 @@ export default function ProfileClient({ user }: ProfileClientProps) {
 
                   <button
                     onClick={() => {
-                      if (!isWalletConnected) {
-                        handleConnectWallet() // Use the same function as desktop Connect Wallet button
+                      if (!osmosisConnected) {
+                        handleConnectWallet() // Same handler
                       } else if (!selectedAsset) {
-                        // Asset selector should handle this
                         alert('Please select an asset to swap')
                       } else if (!swapAmount) {
                         alert('Please enter an amount to swap')
                       } else {
-                        // Execute the swap
-                        // TODO: Implement actual swap logic
                         alert(`Swapping ${swapAmount} ${selectedAsset.symbol} to USDC`)
                       }
                     }}
-                    disabled={!isWalletConnected ? false : (!selectedAsset || !swapAmount)}
+                    disabled={osmosisConnected && (!selectedAsset || !swapAmount)}
                     className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                   >
-                    {!isWalletConnected ? 'Connect Osmosis Wallet' : !selectedAsset ? 'Select Asset' : 'Swap to USDC'}
+                    {!osmosisConnected ? 'Connect Wallet' : !selectedAsset ? 'Select Asset' : 'Swap to USDC'}
                   </button>
                 </div>
               )}
 
               {/* Wallet Status */}
               <div className="mt-4 text-xs text-center">
-                {isWalletConnected ? (
+                {nobleConnected ? (
                   <span className="text-green-600 dark:text-green-400">
                     ✓ Connected: {nobleAddress?.slice(0, 10)}...{nobleAddress?.slice(-6)}
                   </span>
@@ -633,18 +585,15 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                         )}
                       </div>
                       
-                      {selectedAsset && swapAmount && route ? (
+                      {selectedAsset && swapAmount ? (
                         <div className="space-y-4">
                           {/* Basic Swap Info */}
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Swap:</span>
-                              <span>{swapAmount} {selectedAsset.symbol} → {calculateOutputAmount(route.amount_out, TOKENS.USDC.decimals)} USDC</span>
+                              <span>{swapAmount} {selectedAsset.symbol} → ${(parseFloat(swapAmount) * selectedAsset.price).toFixed(4)} USDC</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600 dark:text-gray-400">Route:</span>
-                              <span>{formatRouteDisplay(route.route)}</span>
-                            </div>
+                           
                           </div>
 
                           {/* Complete Swap Details */}
@@ -663,47 +612,96 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                 </div>
                               </div>
 
-                              {/* Real Price Impact */}
+                              {/* Slippage */}
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-600 dark:text-gray-400">Slippage Tolerance:</span>
+                                <span className="text-sm">0.5%</span>
+                              </div>
+
+                              {/* Minimum Received */}
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-600 dark:text-gray-400">Minimum Received:</span>
+                                <span className="text-sm">
+                                  ${((parseFloat(swapAmount) * selectedAsset.price) * 0.995).toFixed(6)} USDC
+                                </span>
+                              </div>
+
+                              {/* Fees Breakdown */}
+                              <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-600 dark:text-gray-400">Swap Fee:</span>
+                                  <span className="text-sm">
+                                    ${calculateSwapFee(swapAmount, selectedAsset).toFixed(4)} ({formatFeePercent(getSwapFeePercent(selectedAsset.symbol))})
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-600 dark:text-gray-400">Pool Type:</span>
+                                  <span className="text-sm">{getPoolType(selectedAsset.symbol)}</span>
+                                </div>
+                              </div>
+
+                              {/* Price Impact */}
                               <div className="flex justify-between items-center">
                                 <span className="text-gray-600 dark:text-gray-400">Price Impact:</span>
-                                <span className={`text-sm ${
-                                  parseFloat(route.price_impact) < 0.1 ? 'text-green-600' :
-                                  parseFloat(route.price_impact) < 1 ? 'text-yellow-600' : 'text-red-600'
-                                }`}>
-                                  {parseFloat(route.price_impact).toFixed(2)}%
-                                </span>
-                              </div>
-
-                              {/* Real Swap Fee */}
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-600 dark:text-gray-400">Swap Fee:</span>
-                                <span className="text-sm">
-                                  {parseFloat(route.effective_fee).toFixed(3)}%
-                                </span>
-                              </div>
-
-                              {/* Expected Output */}
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-600 dark:text-gray-400">Expected Output:</span>
-                                <span className="text-sm font-medium">
-                                  {calculateOutputAmount(route.amount_out, TOKENS.USDC.decimals)} USDC
+                                <span className={`text-sm ${getPriceImpactColor(swapAmount, selectedAsset)}`}>
+                                  {calculatePriceImpact(swapAmount, selectedAsset)}%
                                 </span>
                               </div>
 
                               {/* Route Visualization */}
                               <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-                                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Optimal Route:</div>
-                                <div className="text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded">
-                                  {selectedAsset.symbol} → {formatRouteDisplay(route.route)} → USDC
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Route:</div>
+                                <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-2 rounded border">
+                                  <div className="flex items-center">
+                                    {selectedAsset.icon && (
+                                      <img src={selectedAsset.icon} alt={selectedAsset.symbol} className="w-4 h-4 rounded-full mr-1" />
+                                    )}
+                                    <span className="text-xs font-medium">{selectedAsset.symbol}</span>
+                                  </div>
+                                  
+                                  <div className="flex items-center space-x-1">
+                                    <div className="text-xs text-gray-400">Pool #{getSwapPoolId(selectedAsset.symbol)}</div>
+                                    <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </div>
+                                  
+                                  <div className="flex items-center">
+                                    {TOKENS.USDC?.icon ? (
+                                      <img 
+                                        src={TOKENS.USDC.icon} 
+                                        alt="USDC"
+                                        className="w-4 h-4 rounded-full mr-1"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement
+                                          target.style.display = 'none'
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold mr-1">
+                                        $
+                                      </div>
+                                    )}
+                                    <span className="text-xs font-medium">USDC</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Summary */}
+                              <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
+                                <div className="flex justify-between items-center font-medium">
+                                  <span className="text-gray-800 dark:text-gray-200">You Pay:</span>
+                                  <span>{swapAmount} {selectedAsset.symbol}</span>
+                                </div>
+                                <div className="flex justify-between items-center font-medium mt-1">
+                                  <span className="text-gray-800 dark:text-gray-200">You Receive:</span>
+                                  <span>
+                                    ~${((parseFloat(swapAmount) * selectedAsset.price) * 0.995).toFixed(4)} USDC
+                                  </span>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ) : selectedAsset && swapAmount ? (
-                        <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
-                          <div className="animate-spin w-4 h-4 border border-gray-400 border-t-transparent rounded-full mr-2"></div>
-                          Calculating optimal route...
                         </div>
                       ) : (
                         <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -884,7 +882,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
       <CosmosWalletModal 
         isOpen={isCosmosModalOpen} 
         onClose={() => setIsCosmosModalOpen(false)}
-        chainName={activeTab === 'swap' ? 'osmosis' : 'noble'} // Dynamic chain based on tab
+        chainName="noble" 
       />
     </div>
   )
