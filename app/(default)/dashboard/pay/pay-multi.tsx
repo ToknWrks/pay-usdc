@@ -195,7 +195,7 @@ export default function PayMultiPage() {
     if (!nobleConnected || validRecipients.length === 0) return false
     
     // Check if user has sufficient balance
-    if (nobleBalance.data && totalAmount > parseFloat(nobleBalance.data.amount)) {
+    if (nobleBalance.native && totalAmount > parseFloat(nobleBalance.native.amount)) {
       return false
     }
     
@@ -219,7 +219,7 @@ export default function PayMultiPage() {
       // For fixed lists: need payment amount
       return parseFloat(paymentAmount || '0') > 0
     }
-  }, [nobleConnected, validRecipients, loadedListType, paymentAmount, getTotalPercentage, getTotalAmount, nobleBalance.data, totalAmount])
+  }, [nobleConnected, validRecipients, loadedListType, paymentAmount, getTotalPercentage, getTotalAmount, nobleBalance.native, totalAmount])
 
   // Update the handleSend function with better validation and clearer logic
   const handleSend = async () => {
@@ -524,8 +524,8 @@ export default function PayMultiPage() {
     showNotification('', 'List cleared') // Use '' for info type
   }
 
-  // Check if user has sufficient balance
-  const currentBalance = parseFloat(nobleBalance.native?.formatted || '0')
+  // Check if user has sufficient balance - FIX: Use nobleBalance.native
+  const currentBalance = parseFloat(nobleBalance.native?.amount || '0')
   const hasInsufficientBalance = totalAmount > currentBalance
 
   // Update the showNotification function:
@@ -592,7 +592,7 @@ export default function PayMultiPage() {
                   <div className="flex items-center mt-2">
                     <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
                     <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Noble connected • Balance: ${nobleBalance.native?.formatted || '0.00'} USDC
+                      Noble connected • Balance: ${nobleBalance.native?.amount || '0.00'} USDC
                     </span>
                   </div>
                 ) : (
@@ -755,16 +755,16 @@ export default function PayMultiPage() {
               </header>
               <div className="p-5 space-y-3">
                 
-                {/* Balance Check */}
-                {nobleBalance.data && (
+                {/* Balance Check - FIX: Use nobleBalance.native instead of nobleBalance.data */}
+                {nobleBalance.native && (
                   <div className={`p-3 rounded-lg border ${
-                    totalAmount > parseFloat(nobleBalance.data.amount)
+                    totalAmount > parseFloat(nobleBalance.native.amount)
                       ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
                       : 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
                   }`}>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Balance Check</span>
-                      {totalAmount > parseFloat(nobleBalance.data.amount) ? (
+                      {totalAmount > parseFloat(nobleBalance.native.amount) ? (
                         <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -777,7 +777,7 @@ export default function PayMultiPage() {
                     <div className="text-xs mt-1">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Available:</span>
-                        <span>${parseFloat(nobleBalance.data.amount).toFixed(6)}</span>
+                        <span>${parseFloat(nobleBalance.native.amount).toFixed(6)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Required:</span>
