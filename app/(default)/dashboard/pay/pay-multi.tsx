@@ -592,7 +592,7 @@ export default function PayMultiPage() {
                   <div className="flex items-center mt-2">
                     <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
                     <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Noble connected • Balance: ${nobleBalance.native?.amount || '0.00'} USDC
+                      Noble connected • Balance: ${nobleBalance.native?.formatted || '0.00'} USDC
                     </span>
                   </div>
                 ) : (
