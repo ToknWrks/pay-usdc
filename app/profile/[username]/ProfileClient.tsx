@@ -24,6 +24,64 @@ interface ProfileClientProps {
 }
 
 export default function ProfileClient({ user }: ProfileClientProps) {
+  const [validationError, setValidationError] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Validate user data
+    if (!user) {
+      setValidationError('User data not provided')
+      return
+    }
+
+    if (!user.nobleAddress) {
+      setValidationError('Invalid user: missing Noble address')
+      return
+    }
+
+    if (!user.customUrl) {
+      setValidationError('Invalid user: missing custom URL')
+      return
+    }
+
+    console.log('✅ User validation passed:', {
+      id: user.id,
+      customUrl: user.customUrl,
+      nobleAddress: user.nobleAddress?.slice(0, 10) + '...'
+    })
+
+    setValidationError(null)
+  }, [user])
+
+  // Add environment debugging
+  useEffect(() => {
+    console.log('🌍 Environment Info:', {
+      isDev: process.env.NODE_ENV === 'development',
+      isClient: typeof window !== 'undefined',
+      userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server',
+      url: typeof window !== 'undefined' ? window.location.href : 'server'
+    })
+
+    console.log('👤 User data received:', {
+      hasUser: !!user,
+      userId: user?.id,
+      customUrl: user?.customUrl,
+      hasNobleAddress: !!user?.nobleAddress,
+      nobleAddressValid: user?.nobleAddress?.startsWith('noble1'),
+      isActive: user?.isActive
+    })
+  }, [user])
+
+  if (validationError) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Profile Error</h1>
+          <p className="text-gray-600 dark:text-gray-400">{validationError}</p>
+        </div>
+      </div>
+    )
+  }
+
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [isQRModalOpen, setIsQRModalOpen] = useState(false)
@@ -34,12 +92,25 @@ export default function ProfileClient({ user }: ProfileClientProps) {
   const [transactionStep, setTransactionStep] = useState<1 | 2 | 3>(1)
   const [swapTxHash, setSwapTxHash] = useState('')
   const [transferTxHash, setTransferTxHash] = useState('')
-  
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   // Noble wallet connection
   const { address: nobleAddress, isWalletConnected: nobleConnected } = useChain('noble')
 
   // Osmosis assets
-  const { assets, isLoading, error, refetch, connect, isConnected: osmosisConnected, highestValueAsset } = useOsmosisAssets()
+  const { assets, isLoading: isAssetsLoading, error: assetsError, refetch, connect, isConnected: osmosisConnected, highestValueAsset } = useOsmosisAssets()
+
+  // Add error boundary
+  useEffect(() => {
+    try {
+      setIsLoading(false)
+    } catch (err) {
+      console.error('ProfileClient error:', err)
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      setIsLoading(false)
+    }
+  }, [])
 
   // Auto-select highest value asset when available
   useEffect(() => {
@@ -151,6 +222,28 @@ export default function ProfileClient({ user }: ProfileClientProps) {
     return (
       <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
         <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{stepNumber}</span>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading profile...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Profile</h1>
+          <p className="text-gray-600 dark:text-gray-400">{error}</p>
+        </div>
       </div>
     )
   }

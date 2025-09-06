@@ -246,7 +246,7 @@ export default function CustomUrlSettings({ currentUrl, userId }: CustomUrlSetti
           <div className="text-green-600 dark:text-green-400 text-sm bg-green-50 dark:bg-green-900/10 p-3 rounded-lg">
             Custom URL updated! Your profile is now at: 
             <a href={`/${customUrl}`} className="underline ml-1 hover:text-green-700">
-              pay-usdc.app/{customUrl}
+              payusdc.app/{customUrl}
             </a>
           </div>
         )}
