@@ -64,8 +64,9 @@ export default function Header({
               </button>
               <SearchModal isOpen={searchModalOpen} setIsOpen={setSearchModalOpen} /> */}
             </div>
-            {/* 
+            
             <Notifications align="right" />
+            {/* 
             <DropdownHelp align="right" />
             */}
             <ThemeToggle />

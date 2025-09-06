@@ -7,8 +7,9 @@ interface RecipientList {
   ownerAddress: string
   name: string
   description?: string
-  listType: 'fixed' | 'percentage'
+  listType: 'fixed' | 'percentage' | 'variable' // Add variable
   totalRecipients: number
+  totalAmount?: string // Add total amount
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -19,7 +20,8 @@ interface SavedRecipient {
   listId: number
   name?: string
   address: string
-  percentage?: string // Add this
+  percentage?: string
+  amount?: string // Add individual amount
   order: number
   createdAt: string
 }
@@ -57,11 +59,12 @@ export function useRecipientLists(ownerAddress?: string) {
   const createList = async (listData: {
     name: string
     description?: string
-    listType?: 'fixed' | 'percentage'
+    listType?: 'fixed' | 'percentage' | 'variable'
     recipients: Array<{
       name?: string
       address: string
       percentage?: string
+      amount?: string // Add amount field
     }>
   }) => {
     if (!ownerAddress) throw new Error('No owner address')
@@ -73,7 +76,7 @@ export function useRecipientLists(ownerAddress?: string) {
         body: JSON.stringify({
           ownerAddress,
           ...listData,
-          listType: listData.listType || 'fixed' // Default to fixed
+          listType: listData.listType || 'fixed'
         })
       })
 
@@ -91,16 +94,21 @@ export function useRecipientLists(ownerAddress?: string) {
   }
 
   const loadList = async (listId: number) => {
+    if (!ownerAddress) throw new Error('No owner address')
+
     try {
       const response = await fetch(`/api/recipient-lists/${listId}`)
-
+      
       if (!response.ok) {
         throw new Error('Failed to load list')
       }
 
       const data = await response.json()
+      
+      console.log('🔍 API returned list data:', data) // Debug log
+      
       return {
-        list: data.list,
+        list: data.list, // Make sure this includes listType
         recipients: data.recipients
       }
     } catch (error) {
@@ -112,11 +120,12 @@ export function useRecipientLists(ownerAddress?: string) {
   const updateList = async (listId: number, listData: {
     name: string
     description?: string
-    listType?: 'fixed' | 'percentage'
+    listType?: 'fixed' | 'percentage' | 'variable'
     recipients: Array<{
       name?: string
       address: string
       percentage?: string
+      amount?: string // Add amount field
     }>
   }) => {
     try {

@@ -16,8 +16,9 @@ export const recipientLists = pgTable('recipient_lists', {
   ownerAddress: text('owner_address').notNull(),
   name: text('name').notNull(),
   description: text('description'),
-  listType: text('list_type').notNull().default('fixed'), // 'fixed' or 'percentage'
+  listType: text('list_type').notNull().default('fixed'), // 'fixed', 'percentage', or 'variable'
   totalRecipients: integer('total_recipients').default(0),
+  totalAmount: decimal('total_amount', { precision: 18, scale: 6 }), // Add total for variable lists
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -30,6 +31,7 @@ export const savedRecipients = pgTable('saved_recipients', {
   name: text('name'),
   address: text('address').notNull(),
   percentage: decimal('percentage', { precision: 5, scale: 2 }), // For fund percentage (0-100.00)
+  amount: decimal('amount', { precision: 18, scale: 6 }), // Add fixed amount for variable lists
   order: integer('order').default(0),
   createdAt: timestamp('created_at').defaultNow(),
 })

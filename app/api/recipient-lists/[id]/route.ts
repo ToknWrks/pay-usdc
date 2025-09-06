@@ -21,16 +21,27 @@ export async function GET(
       return NextResponse.json({ error: 'List not found' }, { status: 404 })
     }
 
-    // Get recipients
+    // Get recipients with ALL fields including amount
     const recipients = await db
-      .select()
+      .select({
+        id: savedRecipients.id,
+        listId: savedRecipients.listId,
+        name: savedRecipients.name,
+        address: savedRecipients.address,
+        percentage: savedRecipients.percentage,
+        amount: savedRecipients.amount, // Explicitly include amount
+        order: savedRecipients.order,
+        createdAt: savedRecipients.createdAt,
+      })
       .from(savedRecipients)
       .where(eq(savedRecipients.listId, listId))
       .orderBy(savedRecipients.order)
 
+    console.log('🔍 API returning recipients:', recipients) // Debug log
+
     return NextResponse.json({ 
       list: list[0], 
-      recipients 
+      recipients: recipients
     })
   } catch (error) {
     console.error('Error fetching recipient list:', error)
@@ -46,52 +57,46 @@ export async function PUT(
   try {
     const listId = parseInt(params.id)
     const body = await request.json()
-    const { name, description, listType = 'fixed', recipients } = body
+    const { name, description, listType, recipients } = body
 
-    if (!name || !recipients || !Array.isArray(recipients)) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    // Calculate total amount for variable lists
+    let totalAmount = null
+    if (listType === 'variable') {
+      totalAmount = recipients.reduce((sum: number, recipient: any) => {
+        return sum + (parseFloat(recipient.amount) || 0)
+      }, 0)
     }
 
-    // Calculate totals
-    const totalRecipients = recipients.length
-
-    // Update the list info
-    const updatedList = await db
-      .update(recipientLists)
+    // Update the list
+    await db.update(recipientLists)
       .set({
         name,
-        description: description || null,
+        description,
         listType,
-        totalRecipients,
+        totalRecipients: recipients.length,
+        totalAmount: totalAmount?.toString(),
         updatedAt: new Date(),
       })
       .where(eq(recipientLists.id, listId))
-      .returning()
-
-    if (updatedList.length === 0) {
-      return NextResponse.json({ error: 'List not found' }, { status: 404 })
-    }
 
     // Delete existing recipients
     await db.delete(savedRecipients).where(eq(savedRecipients.listId, listId))
 
-    // Add new recipients
+    // Add updated recipients
     if (recipients.length > 0) {
       const recipientData = recipients.map((recipient: any, index: number) => ({
         listId,
         name: recipient.name || null,
         address: recipient.address,
         percentage: listType === 'percentage' ? (recipient.percentage || null) : null,
+        amount: listType === 'variable' ? (recipient.amount || null) : null,
         order: index,
       }))
 
       await db.insert(savedRecipients).values(recipientData)
     }
 
-    return NextResponse.json({ 
-      list: updatedList[0],
-      message: 'List updated successfully' 
-    })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error updating recipient list:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

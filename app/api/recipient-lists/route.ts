@@ -35,8 +35,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Calculate totals
+    // Calculate totals based on list type
     const totalRecipients = recipients.length
+    let totalAmount = null
+
+    if (listType === 'variable') {
+      totalAmount = recipients.reduce((sum, recipient) => {
+        return sum + (parseFloat(recipient.amount) || 0)
+      }, 0)
+    }
 
     // Create the list
     const newList = await db.insert(recipientLists).values({
@@ -45,17 +52,19 @@ export async function POST(request: NextRequest) {
       description,
       listType,
       totalRecipients,
+      totalAmount: totalAmount?.toString(),
     }).returning()
 
     const listId = newList[0].id
 
-    // Add recipients to the list
+    // Add recipients with proper fields based on list type
     if (recipients.length > 0) {
       const recipientData = recipients.map((recipient: any, index: number) => ({
         listId,
         name: recipient.name || null,
         address: recipient.address,
         percentage: listType === 'percentage' ? (recipient.percentage || null) : null,
+        amount: listType === 'variable' ? (recipient.amount || null) : null,
         order: index,
       }))
 

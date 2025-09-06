@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation'
 import { useChain } from '@cosmos-kit/react'
 import { useRecipientLists } from '@/hooks/use-recipient-lists'
 import Link from 'next/link'
+import Toast03 from '@/components/toast-03'
 
 interface EditableRecipient {
   id: string
   name: string
   address: string
   percentage?: string // For fund split lists
+  amount?: string // For variable amount lists
   isValid: boolean
 }
 
@@ -23,10 +25,14 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
-  const [listType, setListType] = useState<'fixed' | 'percentage'>('fixed') // Define listType with default value
-  const [importError, setImportError] = useState<string | null>(null)
+  const [listType, setListType] = useState<'fixed' | 'percentage' | 'variable'>('fixed') // Define listType with default value
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [notification, setNotification] = useState<{
+    type: 'warning' | 'error' | 'success' | ''
+    message: string
+    open: boolean
+  } | null>(null)
 
   // Noble wallet connection
   const { address: nobleAddress, isWalletConnected: nobleConnected } = useChain('noble')
@@ -55,15 +61,20 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
         name: r.name || '',
         address: r.address,
         percentage: r.percentage || '', // Load percentage from database
+        amount: r.amount || '', // ADD THIS: Load amount from database
         isValid: validateRecipient(r.address)
       }))
       
       setRecipients(convertedRecipients.length > 0 ? convertedRecipients : [
-        { id: '1', name: '', address: '', percentage: listType === 'percentage' ? '' : undefined, isValid: false }
+        { id: '1', name: '', address: '', 
+          percentage: listType === 'percentage' ? '' : undefined,
+          amount: listType === 'variable' ? '' : undefined, // ADD THIS
+          isValid: false 
+        }
       ])
     } catch (error) {
       console.error('Failed to load list:', error)
-      alert('Failed to load list')
+      showNotification('error', 'Failed to load list')
       router.push('/dashboard/lists')
     } finally {
       setIsLoading(false)
@@ -83,6 +94,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
       name: '',
       address: '',
       percentage: listType === 'percentage' ? '' : undefined,
+      amount: listType === 'variable' ? '' : undefined,
       isValid: false
     }
     setRecipients([...recipients, newRecipient])
@@ -96,7 +108,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
   }
 
   // Update recipient
-  const updateRecipient = (id: string, field: 'name' | 'address' | 'percentage', value: string) => {
+  const updateRecipient = (id: string, field: 'name' | 'address' | 'percentage' | 'amount', value: string) => {
     setRecipients(recipients.map(recipient => {
       if (recipient.id === id) {
         const updated = { ...recipient, [field]: value }
@@ -118,14 +130,19 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
     const nameIndex = header.findIndex(h => h.includes('name'))
     const addressIndex = header.findIndex(h => h.includes('address') || h.includes('wallet'))
     const percentageIndex = header.findIndex(h => h.includes('percentage') || h.includes('percent') || h.includes('%'))
+    const amountIndex = header.findIndex(h => h.includes('amount') || h.includes('usdc') || h.includes('dollar'))
   
     if (addressIndex === -1) {
       throw new Error('CSV must contain Address column')
     }
   
-    // For percentage lists, require percentage column
+    // Validation based on list type
     if (listType === 'percentage' && percentageIndex === -1) {
       throw new Error('CSV must contain Percentage column for fund split lists')
+    }
+    
+    if (listType === 'variable' && amountIndex === -1) {
+      throw new Error('CSV must contain Amount column for variable amount lists')
     }
   
     const parsedRecipients: EditableRecipient[] = []
@@ -140,6 +157,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
       const name = nameIndex >= 0 ? cells[nameIndex] || '' : ''
       const address = cells[addressIndex] || ''
       const percentage = listType === 'percentage' && percentageIndex >= 0 ? cells[percentageIndex] || '' : undefined
+      const amount = listType === 'variable' && amountIndex >= 0 ? cells[amountIndex] || '' : undefined
   
       if (address) {
         parsedRecipients.push({
@@ -147,6 +165,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
           name,
           address,
           percentage,
+          amount,
           isValid: validateRecipient(address)
         })
       }
@@ -158,15 +177,15 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
   const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
-
+  
     if (!file.name.toLowerCase().endsWith('.csv')) {
-      setImportError('Please select a CSV file')
+      // Replace setImportError with notification
+      showNotification('error', 'Please select a CSV file')
       return
     }
-
+  
     setIsImporting(true)
-    setImportError(null)
-
+  
     try {
       const text = await file.text()
       const importedRecipients = parseCSV(text)
@@ -174,24 +193,26 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
       if (importedRecipients.length === 0) {
         throw new Error('No valid recipients found in CSV')
       }
-
+  
       if (importedRecipients.length > 100) {
         throw new Error('Maximum 100 recipients allowed per import')
       }
-
+  
       setRecipients(importedRecipients)
       
       const validCount = importedRecipients.filter(r => r.isValid).length
       const invalidCount = importedRecipients.length - validCount
       
       if (invalidCount > 0) {
-        setImportError(`Imported ${importedRecipients.length} recipients. ${invalidCount} have validation errors.`)
+        showNotification('warning', `Imported ${importedRecipients.length} recipients. ${invalidCount} have validation errors.`)
       } else {
-        alert(`✅ Successfully imported ${validCount} valid recipients!`)
+        // Replace alert with notification
+        showNotification('success', `Successfully imported ${validCount} valid recipients!`)
       }
-
+  
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : 'Failed to parse CSV')
+      // Replace setImportError with notification
+      showNotification('error', error instanceof Error ? error.message : 'Failed to parse CSV')
     } finally {
       setIsImporting(false)
       if (fileInputRef.current) {
@@ -207,6 +228,11 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
 "John Doe","noble1abc123def456ghi789jkl012mno345pqr678stu","50.00"
 "Jane Smith","noble1xyz789abc012def345ghi678jkl901mno234pqr","30.00"
 "Team Payment","noble1qwe456rty789uio012asd345fgh678jkl901zxc","20.00"`
+    : listType === 'variable'
+    ? `Name,Address,Amount
+"John Doe","noble1abc123def456ghi789jkl012mno345pqr678stu","25.00"
+"Jane Smith","noble1xyz789abc012def345ghi678jkl901mno234pqr","50.00"
+"Team Payment","noble1qwe456rty789uio012asd345fgh678jkl901zxc","10.00"`
     : `Name,Address
 "John Doe","noble1abc123def456ghi789jkl012mno345pqr678stu"
 "Jane Smith","noble1xyz789abc012def345ghi678jkl901mno234pqr"
@@ -245,9 +271,14 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
     if (confirmed) {
       try {
         await deleteList(listId)
-        router.push('/dashboard/lists')
+        showNotification('success', 'List deleted successfully')
+        // Small delay to show the notification before navigation
+        setTimeout(() => {
+          router.push('/dashboard/lists')
+        }, 1000)
       } catch (error) {
-        alert(`Failed to delete list: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        // Replace alert with notification
+        showNotification('error', `Failed to delete list: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
   }
@@ -279,14 +310,27 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
     }, 0);
   };
 
+  const getTotalAmount = () => {
+    return recipients.reduce((sum, recipient) => {
+      const amount = parseFloat(recipient.amount || '0');
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+  };
+
+  const showNotification = (type: 'warning' | 'error' | 'success' | '', message: string) => {
+    setNotification({ type, message, open: true })
+    // Auto-hide after 5 seconds
+    setTimeout(() => setNotification(null), 5000)
+  }
+
   const handleSaveList = async () => {
     if (!listId) {
-      alert('❌ List ID is missing')
+      showNotification('error', 'List ID is missing')
       return
     }
   
     if (!listName.trim()) {
-      alert('Please enter a list name')
+      showNotification('warning', 'Please enter a list name')
       return
     }
   
@@ -299,7 +343,15 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
       // Validate percentages add up to 100%
       const totalPercentage = getTotalPercentage()
       if (Math.abs(totalPercentage - 100) > 0.01) {
-        alert(`Percentages must add up to 100%. Current total: ${totalPercentage.toFixed(2)}%`)
+        showNotification('error', `Percentages must add up to 100%. Current total: ${totalPercentage.toFixed(2)}%`)
+        return
+      }
+    } else if (listType === 'variable') {
+      // For variable amounts: need address and amount
+      validRecipients = recipients.filter(r => r.address && r.amount)
+      
+      if (validRecipients.length === 0) {
+        showNotification('warning', 'Please add recipients with amounts for variable amount lists')
         return
       }
     } else {
@@ -321,14 +373,17 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
         recipients: validRecipients.map(r => ({
           name: r.name || undefined,
           address: r.address,
-          percentage: listType === 'percentage' ? r.percentage : undefined
+          percentage: listType === 'percentage' ? r.percentage : undefined,
+          amount: listType === 'variable' ? r.amount : undefined
         }))
       })
       
       setHasUnsavedChanges(false)
-      alert('✅ List saved successfully!')
+      // Replace alert with notification
+      showNotification('success', 'List saved successfully!')
     } catch (error) {
-      alert(`❌ Failed to save list: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      // Replace alert with notification
+      showNotification('error', `Failed to save list: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsSaving(false)
     }
@@ -348,6 +403,19 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-[96rem] mx-auto">
       
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50">
+          <Toast03
+            type={notification.type}
+            open={notification.open}
+            setOpen={(open) => !open && setNotification(null)}
+          >
+            {notification.message}
+          </Toast03>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center space-x-2 mb-4">
@@ -420,7 +488,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
             >
               <div className="text-center">
                 <div className="font-medium">Fixed Amounts</div>
-                <div className="text-xs opacity-75">Each person gets the same amount</div>
+                <div className="text-xs opacity-75">Same amount for everyone</div>
               </div>
             </button>
             <button
@@ -436,6 +504,19 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
                 <div className="text-xs opacity-75">Split total by percentages</div>
               </div>
             </button>
+            <button
+              onClick={() => setListType('variable')}
+              className={`flex-1 px-4 py-3 text-sm rounded-md transition-colors ${
+                listType === 'variable'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+              }`}
+            >
+              <div className="text-center">
+                <div className="font-medium">Variable Amounts</div>
+                <div className="text-xs opacity-75">Custom amount per person</div>
+              </div>
+            </button>
           </div>
         </div>
         
@@ -445,9 +526,13 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
               <>
                 <strong>Fixed Amounts:</strong> You'll set a specific USDC amount per recipient when sending. All recipients get the same amount.
               </>
-            ) : (
+            ) : listType === 'percentage' ? (
               <>
                 <strong>Fund Split:</strong> Recipients receive a percentage of the total amount sent. Percentages must add up to 100%.
+              </>
+            ) : (
+              <>
+                <strong>Variable Amounts:</strong> Each recipient has their own pre-set USDC amount. You pay the total of all amounts.
               </>
             )}
           </p>
@@ -466,6 +551,19 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
                   : 'text-red-600 dark:text-red-400'
               }`}>
                 {Math.abs(getTotalPercentage() - 100) < 0.01 ? '✓ Balanced' : '⚠ Must equal 100%'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {listType === 'variable' && recipients.length > 0 && (
+          <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Total payment amount: ${getTotalAmount().toFixed(2)} USDC
+              </span>
+              <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                {recipients.filter(r => r.amount && parseFloat(r.amount) > 0).length} recipients with amounts
               </span>
             </div>
           </div>
@@ -520,7 +618,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
               className="w-full px-4 py-2 bg-gray-500 text-white hover:bg-gray-600 rounded-lg transition-colors flex items-center justify-center"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m0 0l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Download Template
             </button>
@@ -542,14 +640,6 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
             </button>
           </div>
         </div>
-
-        {importError && (
-          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <p className="text-sm text-yellow-700 dark:text-yellow-300">
-              ⚠️ {importError}
-            </p>
-          </div>
-        )}
 
         <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
           <p className="text-sm text-blue-700 dark:text-blue-300">
@@ -576,12 +666,17 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
           </button>
         </div>
       
-        {/* Header Row */}
+        {/* Header Row - Updated */}
         <div className="hidden md:grid grid-cols-12 gap-3 mb-2 px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400">
           <div className="col-span-1">#</div>
           <div className="col-span-3">Name (Optional)</div>
-          <div className={listType === 'percentage' ? 'col-span-5' : 'col-span-7'}>Noble Address</div>
+          <div className={
+            listType === 'percentage' ? 'col-span-5' : 
+            listType === 'variable' ? 'col-span-5' : 
+            'col-span-7'
+          }>Noble Address</div>
           {listType === 'percentage' && <div className="col-span-2">Share %</div>}
+          {listType === 'variable' && <div className="col-span-2">Amount (USDC)</div>}
           <div className="col-span-1">Actions</div>
         </div>
       
@@ -614,7 +709,7 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
                 </div>
                 
                 {/* Address Field */}
-                <div className={listType === 'percentage' ? 'col-span-5' : 'col-span-7'}>
+                <div className={listType === 'percentage' ? 'col-span-5' : listType === 'variable' ? 'col-span-5' : 'col-span-7'}>
                   <input
                     type="text"
                     value={recipient.address}
@@ -639,6 +734,24 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
                         className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-8"
                       />
                       <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">%</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Amount Field (only for variable amounts) */}
+                {listType === 'variable' && (
+                  <div className="col-span-2">
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={recipient.amount || ''}
+                        onChange={(e) => updateRecipient(recipient.id, 'amount', e.target.value)}
+                        placeholder="10.00"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white pl-6"
+                      />
                     </div>
                   </div>
                 )}
@@ -717,6 +830,21 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
                       <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">%</span>
                     </div>
                   )}
+
+                  {listType === 'variable' && (
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={recipient.amount || ''}
+                        onChange={(e) => updateRecipient(recipient.id, 'amount', e.target.value)}
+                        placeholder="10.00"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white pl-6"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
       
@@ -749,9 +877,16 @@ export default function EditRecipientListPage({ listId }: { listId: number }) {
               </button>
               <button
                 onClick={() => {
-                  const confirmed = confirm('Remove all empty recipients?')
+                  const emptyRecipients = recipients.filter(r => !r.address && !r.name)
+                  if (emptyRecipients.length === 0) {
+                    showNotification('', 'No empty recipients to remove')
+                    return
+                  }
+                  
+                  const confirmed = confirm(`Remove ${emptyRecipients.length} empty recipients?`)
                   if (confirmed) {
                     setRecipients(recipients.filter(r => r.address || r.name))
+                    showNotification('success', `Removed ${emptyRecipients.length} empty recipients`)
                   }
                 }}
                 className="text-sm text-red-500 hover:text-red-700 dark:text-red-400"

@@ -4,24 +4,31 @@ import { useState, useEffect } from 'react'
 import { useChain } from '@cosmos-kit/react'
 import { useRecipientLists } from '@/hooks/use-recipient-lists'
 import Link from 'next/link'
+import Toast03 from '@/components/toast-03'
 
 interface CreateListModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (name: string, description: string) => void
+  onSave: (name: string, description: string, listType: 'fixed' | 'percentage' | 'variable') => void
   isSaving: boolean
 }
 
 function CreateListModal({ isOpen, onClose, onSave, isSaving }: CreateListModalProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [listType, setListType] = useState<'fixed' | 'percentage' | 'variable'>('fixed')
 
   const handleSave = () => {
-    if (name.trim()) {
-      onSave(name.trim(), description.trim())
-      setName('')
-      setDescription('')
+    if (!name.trim()) {
+      // You can pass the showNotification function as a prop or create a simple validation
+      alert('Please enter a list name') // Keep this simple validation or pass showNotification as prop
+      return
     }
+    
+    onSave(name.trim(), description.trim(), listType)
+    setName('')
+    setDescription('')
+    setListType('fixed')
   }
 
   if (!isOpen) return null
@@ -61,6 +68,27 @@ function CreateListModal({ isOpen, onClose, onSave, isSaving }: CreateListModalP
               disabled={isSaving}
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              List Type
+            </label>
+            <select
+              value={listType}
+              onChange={(e) => setListType(e.target.value as 'fixed' | 'percentage' | 'variable')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              disabled={isSaving}
+            >
+              <option value="fixed">Fixed Amount - Same amount for everyone</option>
+              <option value="percentage">Fund Split - Percentage of total fund</option>
+              <option value="variable">Variable Amounts - Custom amount per person</option>
+            </select>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {listType === 'fixed' && 'You set one amount that everyone receives'}
+              {listType === 'percentage' && 'Each person gets a percentage of your total payment'}
+              {listType === 'variable' && 'Each person has their own custom amount'}
+            </p>
+          </div>
         </div>
 
         <div className="flex justify-end space-x-3 mt-6">
@@ -88,6 +116,11 @@ export default function RecipientListsPage() {
   const [hasMounted, setHasMounted] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [notification, setNotification] = useState<{
+    type: 'warning' | 'error' | 'success' | ''
+    message: string
+    open: boolean
+  } | null>(null)
 
   // Noble wallet connection
   const { 
@@ -102,18 +135,28 @@ export default function RecipientListsPage() {
     setHasMounted(true)
   }, [])
 
-  const handleCreateList = async (name: string, description: string) => {
+  useEffect(() => {
+    if (error && hasMounted) {
+      showNotification('error', `Failed to load lists: ${error}`)
+    }
+  }, [error, hasMounted])
+
+  const handleCreateList = async (name: string, description: string, listType: 'fixed' | 'percentage' | 'variable') => {
     setIsSaving(true)
     try {
       // Create with empty recipients - users will add via pay-multi page
       await createList({
         name,
         description: description || undefined,
+        listType,
         recipients: []
       })
       setShowCreateModal(false)
+      // Replace alert with notification
+      showNotification('success', `Created "${name}" list successfully!`)
     } catch (error) {
-      alert(`Failed to create list: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      // Replace alert with notification
+      showNotification('error', `Failed to create list: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsSaving(false)
     }
@@ -122,12 +165,31 @@ export default function RecipientListsPage() {
   const handleDeleteList = async (listId: number, listName: string) => {
     const confirmed = confirm(`Are you sure you want to delete "${listName}"? This action cannot be undone.`)
     if (confirmed) {
+      // Show loading notification
+      showNotification('', `Deleting "${listName}"...`)
+      
       try {
         await deleteList(listId)
+        showNotification('success', `"${listName}" deleted successfully`)
       } catch (error) {
-        alert(`Failed to delete list: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        showNotification('error', `Failed to delete list: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
+  }
+
+  const showNotification = (type: 'warning' | 'error' | 'success' | '', message: string) => {
+    setNotification({ type, message, open: true })
+    // Auto-hide after 5 seconds
+    setTimeout(() => setNotification(null), 5000)
+  }
+
+  // When user tries to create a list without wallet connection
+  const handleCreateButtonClick = () => {
+    if (!nobleConnected) {
+      showNotification('warning', 'Please connect your Noble wallet first')
+      return
+    }
+    setShowCreateModal(true)
   }
 
   if (!hasMounted) {
@@ -147,6 +209,19 @@ export default function RecipientListsPage() {
 
   return (
     <>
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50">
+          <Toast03
+            type={notification.type}
+            open={notification.open}
+            setOpen={(open) => !open && setNotification(null)}
+          >
+            {notification.message}
+          </Toast03>
+        </div>
+      )}
+
       <div className="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-[96rem] mx-auto">
         
         {/* Page Header */}
@@ -198,7 +273,7 @@ export default function RecipientListsPage() {
                 </Link>
                 
                 <button
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={handleCreateButtonClick} // Use new handler instead of setShowCreateModal(true)
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -248,7 +323,7 @@ export default function RecipientListsPage() {
                   Create your first recipient list to organize your USDC payments
                 </p>
                 <button
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={handleCreateButtonClick} // Same handler
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >
                   Create Your First List
@@ -283,23 +358,13 @@ export default function RecipientListsPage() {
                       </div>
                     </div>
 
-                    {/* Update the stats section in the list card */}
-                    <div className="grid grid-cols-1 gap-4 mb-4">
-                      <div className="text-center">
-                        <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                          {list.totalRecipients}
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Recipients
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Add list type indicator */}
+                    {/* Update the list type badge */}
                     <div className="mb-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         list.listType === 'percentage' 
                           ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
+                          : list.listType === 'variable'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                           : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                       }`}>
                         {list.listType === 'percentage' ? (
@@ -308,6 +373,13 @@ export default function RecipientListsPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                             </svg>
                             Fund Split
+                          </>
+                        ) : list.listType === 'variable' ? (
+                          <>
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                            </svg>
+                            Variable Amounts
                           </>
                         ) : (
                           <>
@@ -319,6 +391,18 @@ export default function RecipientListsPage() {
                         )}
                       </span>
                     </div>
+
+                    {/* Show total amount for variable lists */}
+                    {list.listType === 'variable' && list.totalAmount && (
+                      <div className="text-center mb-4">
+                        <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                          ${parseFloat(list.totalAmount).toFixed(2)}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          Total Amount
+                        </div>
+                      </div>
+                    )}
 
                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
                       Updated {new Date(list.updatedAt).toLocaleDateString()}
